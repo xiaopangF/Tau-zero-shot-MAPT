@@ -6,7 +6,7 @@ import argparse
 from pathlib import Path
 
 from .annotations import annotate_variant_row
-from .clinvar import load_mapt_clinvar
+from .clinvar import load_mapt_clinvar_with_qc
 from .ensemble import ensemble_score_rows
 from .evaluate import make_binary_examples, metrics_rows
 from .external_scores import load_alphamissense
@@ -40,7 +40,8 @@ def cmd_enumerate(args: argparse.Namespace) -> None:
 
 def cmd_import_clinvar(args: argparse.Namespace) -> None:
     variants = read_tsv(args.variants)
-    clinvar_by_id = load_mapt_clinvar(args.clinvar)
+    result = load_mapt_clinvar_with_qc(args.clinvar)
+    clinvar_by_id = result.accepted_by_variant
     rows = []
     for row in variants:
         merged = dict(row)
@@ -48,6 +49,10 @@ def cmd_import_clinvar(args: argparse.Namespace) -> None:
         rows.append(merged)
     fieldnames = merge_fieldnames(rows)
     write_tsv(args.out, rows, fieldnames)
+    if args.rejected_out:
+        rejected_fieldnames = merge_fieldnames(result.rejected_rows)
+        write_tsv(args.rejected_out, result.rejected_rows, rejected_fieldnames)
+        print(f"Wrote {len(result.rejected_rows)} rejected ClinVar rows to {args.rejected_out}")
     print(f"Wrote {len(rows)} annotated variants to {args.out}")
 
 
@@ -149,6 +154,7 @@ def build_parser() -> argparse.ArgumentParser:
     clinvar_parser.add_argument("--variants", required=True)
     clinvar_parser.add_argument("--clinvar", required=True)
     clinvar_parser.add_argument("--out", required=True, type=Path)
+    clinvar_parser.add_argument("--rejected-out", default=None, type=Path)
     clinvar_parser.set_defaults(func=cmd_import_clinvar)
 
     alpha_parser = sub.add_parser("import-alphamissense", help="Merge AlphaMissense scores.")
@@ -207,3 +213,4 @@ def main(argv: list[str] | None = None) -> None:
 
 if __name__ == "__main__":
     main()
+

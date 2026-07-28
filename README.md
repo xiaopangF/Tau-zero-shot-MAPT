@@ -148,3 +148,27 @@ python -m mapt_zero_shot.cli ensemble `
   --score-column pathogenic_score `
   --out results/scores/mapt_esm1v_ensemble.tsv
 ```
+
+## ClinVar coordinate QC
+
+`import-clinvar` keeps only protein substitutions whose wild-type residue matches
+this atlas' 441-aa Tau-F reference sequence. Rejected MAPT ClinVar rows can be
+written with `--rejected-out` and are categorized as:
+
+- `no_parseable_missense`
+- `outside_reference_range`
+- `reference_wt_mismatch`
+
+This protects the benchmark from mixing Big-tau or other MAPT isoform coordinates
+into the 441-aa Tau-F atlas.
+
+## Formal ESM-1v run script
+
+Use the guarded script for the manuscript-scale ESM-1v ensemble:
+
+```powershell
+.\scripts\run_esm1v_ensemble.ps1
+```
+
+The script refuses to run ESM-1v on CPU by default. If you intentionally want a
+long CPU run, pass `-AllowCpu`.
