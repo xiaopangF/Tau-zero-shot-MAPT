@@ -181,3 +181,31 @@ installs the package with the lightweight test dependencies and runs:
 ```powershell
 python -m pytest -q
 ```
+
+## Heuristic baseline
+
+A transparent `tau_heuristic_v1` baseline is available through:
+
+```powershell
+python -m mapt_zero_shot.cli score-heuristic `
+  --annotations data/processed/mapt_all_missense_variants.tsv `
+  --out results/scores/mapt_heuristic_scores.tsv
+```
+
+This is not a learned model. It assigns points for Tau region, aggregation motif,
+known pathogenic hotspot proximity, PTM proximity, charge change, and Pro/Gly/Cys
+changes. Its purpose is to test whether ESM scores add information beyond obvious
+Tau-specific rules.
+
+## Model comparison table
+
+Use `compare-models` to put multiple methods in one benchmark table. Use relative
+paths in `name:path:score_column` specs on Windows.
+
+```powershell
+python -m mapt_zero_shot.cli compare-models `
+  --labels data/processed/mapt_clinvar_benchmark.tsv `
+  --model esm2_t6_8M:results/scores/mapt_esm2_t6_8M_scores.tsv:pathogenic_score `
+  --model tau_heuristic_v1:results/scores/mapt_heuristic_scores.tsv:heuristic_score `
+  --out results/mapt_model_comparison.tsv
+```

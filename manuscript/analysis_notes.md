@@ -42,3 +42,15 @@ Top mean scores by region in the smoke run:
 - proline-rich region: 1.58
 - N-terminal projection: 0.96
 - C-terminal tail: 0.88
+
+## Heuristic baseline smoke result
+
+The transparent `tau_heuristic_v1` baseline has been added to control for obvious
+Tau-specific rules. On the tiny strict ClinVar benchmark it gives AUROC 0.75 and
+AUPRC 1.0, while the lightweight ESM-2 smoke model performs poorly. Because the
+benchmark has only three P/LP vs B/LB examples, this should be treated as a
+sanity check and reviewer-facing motivation for including a simple baseline, not
+as a performance conclusion.
+
+The important manuscript question becomes: does the ESM-1v ensemble prioritize
+known/VUS MAPT variants beyond this transparent Tau heuristic baseline?

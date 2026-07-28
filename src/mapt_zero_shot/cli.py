@@ -6,6 +6,8 @@ import argparse
 from pathlib import Path
 
 from .annotations import annotate_variant_row
+from .baselines import heuristic_score_rows
+from .compare import compare_model_rows
 from .clinvar import load_mapt_clinvar_with_qc
 from .ensemble import ensemble_score_rows
 from .evaluate import make_binary_examples, metrics_rows
@@ -75,6 +77,13 @@ def cmd_import_alphamissense(args: argparse.Namespace) -> None:
     print(f"Wrote {len(rows)} variants with AlphaMissense fields to {args.out}")
 
 
+def cmd_score_heuristic(args: argparse.Namespace) -> None:
+    annotations = read_tsv(args.annotations)
+    rows = heuristic_score_rows(annotations)
+    fieldnames = merge_fieldnames(rows)
+    write_tsv(args.out, rows, fieldnames)
+    print(f"Wrote {len(rows)} heuristic baseline scores to {args.out}")
+
 def cmd_score_esm(args: argparse.Namespace) -> None:
     rows = masked_marginal_scores(model_name=args.model, device=args.device)
     fieldnames = [
@@ -134,6 +143,23 @@ def cmd_prioritize(args: argparse.Namespace) -> None:
     write_tsv(args.out, rows, fieldnames)
     print(f"Wrote {len(rows)} prioritized variants to {args.out}")
 
+
+def _parse_model_spec(spec: str) -> tuple[str, str, str]:
+    parts = spec.split(":")
+    if len(parts) != 3:
+        raise ValueError("Model specs must use name:path:score_column format")
+    return parts[0], parts[1], parts[2]
+
+
+def cmd_compare_models(args: argparse.Namespace) -> None:
+    labels = read_tsv(args.labels)
+    specs = []
+    for spec in args.model:
+        model_name, path, score_column = _parse_model_spec(spec)
+        specs.append((model_name, read_tsv(path), score_column))
+    rows = compare_model_rows(specs, labels)
+    write_tsv(args.out, rows, ["model", "score_column", "metric", "value"])
+    print(f"Wrote {len(rows)} model comparison rows to {args.out}")
 
 def cmd_summarize_clinvar(args: argparse.Namespace) -> None:
     benchmark = read_tsv(args.benchmark)
@@ -196,6 +222,10 @@ def build_parser() -> argparse.ArgumentParser:
     alpha_parser.add_argument("--position-offset", type=int, default=0)
     alpha_parser.set_defaults(func=cmd_import_alphamissense)
 
+    heuristic_parser = sub.add_parser("score-heuristic", help="Score variants with a transparent Tau heuristic baseline.")
+    heuristic_parser.add_argument("--annotations", required=True)
+    heuristic_parser.add_argument("--out", required=True, type=Path)
+    heuristic_parser.set_defaults(func=cmd_score_heuristic)
     score_parser = sub.add_parser("score-esm", help="Score all variants using fair-esm.")
     score_parser.add_argument("--model", default="esm1v_t33_650M_UR90S_1")
     score_parser.add_argument("--device", default=None)
@@ -225,6 +255,11 @@ def build_parser() -> argparse.ArgumentParser:
     priority_parser.add_argument("--out", required=True, type=Path)
     priority_parser.set_defaults(func=cmd_prioritize)
 
+    compare_parser = sub.add_parser("compare-models", help="Compare multiple score files against ClinVar labels.")
+    compare_parser.add_argument("--labels", required=True)
+    compare_parser.add_argument("--model", action="append", required=True, help="Use name:path:score_column format.")
+    compare_parser.add_argument("--out", required=True, type=Path)
+    compare_parser.set_defaults(func=cmd_compare_models)
     clinvar_summary_parser = sub.add_parser(
         "summarize-clinvar", help="Summarize accepted and rejected ClinVar rows."
     )
@@ -260,3 +295,5 @@ def main(argv: list[str] | None = None) -> None:
 
 if __name__ == "__main__":
     main()
+
+
