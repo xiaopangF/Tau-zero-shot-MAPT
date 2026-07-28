@@ -14,6 +14,7 @@ from .figures import create_basic_figures
 from .io import merge_fieldnames, read_tsv, write_tsv
 from .prioritize import prioritize_rows
 from .score_esm import masked_marginal_scores
+from .summaries import clinvar_summary_rows, domain_summary_rows
 from .variants import generate_missense_variants
 
 
@@ -134,6 +135,35 @@ def cmd_prioritize(args: argparse.Namespace) -> None:
     print(f"Wrote {len(rows)} prioritized variants to {args.out}")
 
 
+def cmd_summarize_clinvar(args: argparse.Namespace) -> None:
+    benchmark = read_tsv(args.benchmark)
+    rejected = read_tsv(args.rejected) if args.rejected else None
+    rows = clinvar_summary_rows(benchmark, rejected)
+    write_tsv(args.out, rows, ["section", "category", "count"])
+    print(f"Wrote {len(rows)} ClinVar summary rows to {args.out}")
+
+
+def cmd_summarize_domains(args: argparse.Namespace) -> None:
+    scores = read_tsv(args.scores)
+    annotations = read_tsv(args.annotations)
+    rows = domain_summary_rows(scores, annotations, args.score_column)
+    fieldnames = [
+        "tau_region",
+        "n_variants",
+        "mean_score",
+        "median_score",
+        "q25_score",
+        "q75_score",
+        "max_score",
+        "top_5pct_global_count",
+        "top_5pct_global_fraction",
+        "top_10pct_global_count",
+        "top_10pct_global_fraction",
+    ]
+    write_tsv(args.out, rows, fieldnames)
+    print(f"Wrote {len(rows)} domain summary rows to {args.out}")
+
+
 def cmd_figures(args: argparse.Namespace) -> None:
     scores = read_tsv(args.scores)
     labels = read_tsv(args.labels)
@@ -195,6 +225,23 @@ def build_parser() -> argparse.ArgumentParser:
     priority_parser.add_argument("--out", required=True, type=Path)
     priority_parser.set_defaults(func=cmd_prioritize)
 
+    clinvar_summary_parser = sub.add_parser(
+        "summarize-clinvar", help="Summarize accepted and rejected ClinVar rows."
+    )
+    clinvar_summary_parser.add_argument("--benchmark", required=True)
+    clinvar_summary_parser.add_argument("--rejected", default=None)
+    clinvar_summary_parser.add_argument("--out", required=True, type=Path)
+    clinvar_summary_parser.set_defaults(func=cmd_summarize_clinvar)
+
+    domain_summary_parser = sub.add_parser(
+        "summarize-domains", help="Summarize score distributions by Tau region."
+    )
+    domain_summary_parser.add_argument("--scores", required=True)
+    domain_summary_parser.add_argument("--annotations", required=True)
+    domain_summary_parser.add_argument("--score-column", default="pathogenic_score")
+    domain_summary_parser.add_argument("--out", required=True, type=Path)
+    domain_summary_parser.set_defaults(func=cmd_summarize_domains)
+
     fig_parser = sub.add_parser("figures", help="Create basic publication figures.")
     fig_parser.add_argument("--scores", required=True)
     fig_parser.add_argument("--labels", required=True)
@@ -213,4 +260,3 @@ def main(argv: list[str] | None = None) -> None:
 
 if __name__ == "__main__":
     main()
-

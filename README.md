@@ -172,3 +172,12 @@ Use the guarded script for the manuscript-scale ESM-1v ensemble:
 
 The script refuses to run ESM-1v on CPU by default. If you intentionally want a
 long CPU run, pass `-AllowCpu`.
+
+## Automated tests
+
+The repository includes GitHub Actions CI in `.github/workflows/tests.yml`. It
+installs the package with the lightweight test dependencies and runs:
+
+```powershell
+python -m pytest -q
+```
