@@ -23,4 +23,3 @@ def test_parse_protein_change_three_letter():
     parsed = parse_protein_change("p.Pro301Leu")
     assert parsed is not None
     assert parsed.variant_id == "P301L"
-

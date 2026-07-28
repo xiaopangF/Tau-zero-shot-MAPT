@@ -7,6 +7,7 @@ from pathlib import Path
 
 from .annotations import annotate_variant_row
 from .clinvar import load_mapt_clinvar
+from .ensemble import ensemble_score_rows
 from .evaluate import make_binary_examples, metrics_rows
 from .external_scores import load_alphamissense
 from .figures import create_basic_figures
@@ -80,9 +81,31 @@ def cmd_score_esm(args: argparse.Namespace) -> None:
         "esm_wt_logp",
         "esm_mut_logp",
         "esm_llr",
+        "pathogenic_score",
     ]
     write_tsv(args.out, rows, fieldnames)
     print(f"Wrote {len(rows)} ESM scores to {args.out}")
+
+
+def cmd_ensemble(args: argparse.Namespace) -> None:
+    tables = [read_tsv(path) for path in args.scores]
+    rows = ensemble_score_rows(tables, args.score_column)
+    mean_column = f"{args.score_column}_mean"
+    std_column = f"{args.score_column}_std"
+    fieldnames = [
+        "variant_id",
+        "protein_change",
+        "position",
+        "wt_aa",
+        "mut_aa",
+        "ensemble_score_column",
+        "n_models",
+        "models",
+        mean_column,
+        std_column,
+    ]
+    write_tsv(args.out, rows, fieldnames)
+    print(f"Wrote {len(rows)} ensemble scores to {args.out}")
 
 
 def cmd_evaluate(args: argparse.Namespace) -> None:
@@ -143,17 +166,23 @@ def build_parser() -> argparse.ArgumentParser:
     score_parser.add_argument("--out", required=True, type=Path)
     score_parser.set_defaults(func=cmd_score_esm)
 
+    ensemble_parser = sub.add_parser("ensemble", help="Average multiple score TSV files.")
+    ensemble_parser.add_argument("--scores", nargs="+", required=True)
+    ensemble_parser.add_argument("--score-column", default="pathogenic_score")
+    ensemble_parser.add_argument("--out", required=True, type=Path)
+    ensemble_parser.set_defaults(func=cmd_ensemble)
+
     eval_parser = sub.add_parser("evaluate", help="Evaluate scores against ClinVar P/LP vs B/LB.")
     eval_parser.add_argument("--scores", required=True)
     eval_parser.add_argument("--labels", required=True)
-    eval_parser.add_argument("--score-column", default="esm_llr")
+    eval_parser.add_argument("--score-column", default="pathogenic_score")
     eval_parser.add_argument("--out", required=True, type=Path)
     eval_parser.set_defaults(func=cmd_evaluate)
 
     priority_parser = sub.add_parser("prioritize", help="Rank VUS or unlabeled variants.")
     priority_parser.add_argument("--scores", required=True)
     priority_parser.add_argument("--annotations", required=True)
-    priority_parser.add_argument("--score-column", default="esm_llr")
+    priority_parser.add_argument("--score-column", default="pathogenic_score")
     priority_parser.add_argument("--label", action="append", default=["VUS"])
     priority_parser.add_argument("--include-unlabeled", action="store_true")
     priority_parser.add_argument("--limit", type=int, default=None)
@@ -163,7 +192,7 @@ def build_parser() -> argparse.ArgumentParser:
     fig_parser = sub.add_parser("figures", help="Create basic publication figures.")
     fig_parser.add_argument("--scores", required=True)
     fig_parser.add_argument("--labels", required=True)
-    fig_parser.add_argument("--score-column", default="esm_llr")
+    fig_parser.add_argument("--score-column", default="pathogenic_score")
     fig_parser.add_argument("--outdir", required=True, type=Path)
     fig_parser.set_defaults(func=cmd_figures)
 

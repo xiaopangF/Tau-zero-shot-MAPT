@@ -29,7 +29,13 @@ def masked_marginal_scores(
     sequence: str = MAPT_441_SEQUENCE,
     device: str | None = None,
 ) -> list[dict[str, object]]:
-    """Compute alt minus wild-type log-probability at each MAPT position."""
+    """Compute masked-marginal scores for each single amino-acid substitution.
+
+    `esm_llr` is mutant minus wild-type log probability. Negative values mean the
+    mutation is less compatible with the pretrained sequence model. For ranking
+    putative pathogenicity, use `pathogenic_score = -esm_llr`, where higher is
+    more deleterious under the zero-shot model.
+    """
     model, alphabet, torch = load_esm_model(model_name)
     if device is None:
         device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -57,6 +63,7 @@ def masked_marginal_scores(
                 if mut_aa == wt_aa:
                     continue
                 mut_logp = float(log_probs[aa_to_token[mut_aa]].item())
+                esm_llr = mut_logp - wt_logp
                 variant = MissenseVariant(position=zero_based + 1, wt_aa=wt_aa, mut_aa=mut_aa)
                 rows.append(
                     {
@@ -68,9 +75,9 @@ def masked_marginal_scores(
                         "model": model_name,
                         "esm_wt_logp": wt_logp,
                         "esm_mut_logp": mut_logp,
-                        "esm_llr": mut_logp - wt_logp,
+                        "esm_llr": esm_llr,
+                        "pathogenic_score": -esm_llr,
                     }
                 )
 
     return rows
-
