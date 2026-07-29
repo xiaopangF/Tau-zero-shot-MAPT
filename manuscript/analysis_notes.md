@@ -108,3 +108,29 @@ Local manuscript assets were generated in `results/manuscript_assets/`:
 The ESM-1v ensemble and Tau heuristic have Pearson r=0.58 across all 8379
 variants, suggesting moderate overlap between learned zero-shot signal and the
 transparent Tau-rule baseline. This supports including both in the manuscript.
+
+## AlphaMissense external baseline QC
+
+The public `AlphaMissense_hg38.tsv.gz` table was imported with `--uniprot-id
+P10636` and strict 441-aa Tau-F reference-residue QC.
+
+Coverage in the current local run:
+
+- total Tau-F missense variants: 8379
+- AlphaMissense-scored variants: 877
+- AlphaMissense-scored positions: 149
+- likely benign: 798
+- ambiguous: 67
+- likely pathogenic: 12
+
+Rejected AlphaMissense MAPT rows:
+
+- outside_reference_range: 2048
+- reference_wt_mismatch: 1884
+
+Interpretation: AlphaMissense is useful as an external reference and QC example,
+but its direct coverage of the 441-aa Tau-F atlas is limited. In the strict
+ClinVar binary benchmark it scores only 2 variants, so the AlphaMissense AUROC
+and AUPRC from `results/mapt_model_comparison.tsv` should not be used as a
+manuscript performance claim. The stronger manuscript use is to report coverage,
+coordinate mismatch, and selected concordance/discordance examples.

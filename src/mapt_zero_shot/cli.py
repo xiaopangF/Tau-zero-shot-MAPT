@@ -11,7 +11,7 @@ from .compare import compare_model_rows
 from .clinvar import load_mapt_clinvar_with_qc
 from .ensemble import ensemble_score_rows
 from .evaluate import make_binary_examples, metrics_rows
-from .external_scores import load_alphamissense
+from .external_scores import load_alphamissense_with_qc
 from .figures import create_basic_figures
 from .io import merge_fieldnames, read_tsv, write_tsv
 from .manuscript_assets import (
@@ -23,7 +23,7 @@ from .manuscript_assets import (
 )
 from .prioritize import prioritize_rows
 from .score_esm import masked_marginal_scores
-from .summaries import clinvar_summary_rows, domain_summary_rows
+from .summaries import alphamissense_summary_rows, clinvar_summary_rows, domain_summary_rows
 from .variants import generate_missense_variants
 
 
@@ -68,12 +68,13 @@ def cmd_import_clinvar(args: argparse.Namespace) -> None:
 
 def cmd_import_alphamissense(args: argparse.Namespace) -> None:
     variants = read_tsv(args.variants)
-    alpha_by_id = load_alphamissense(
+    result = load_alphamissense_with_qc(
         args.alphamissense,
         transcript_id=args.transcript_id,
         uniprot_id=args.uniprot_id,
         position_offset=args.position_offset,
     )
+    alpha_by_id = result.accepted_by_variant
     rows = []
     for row in variants:
         merged = dict(row)
@@ -81,6 +82,13 @@ def cmd_import_alphamissense(args: argparse.Namespace) -> None:
         rows.append(merged)
     fieldnames = merge_fieldnames(rows)
     write_tsv(args.out, rows, fieldnames)
+    if args.rejected_out:
+        rejected_fieldnames = merge_fieldnames(result.rejected_rows)
+        write_tsv(args.rejected_out, result.rejected_rows, rejected_fieldnames)
+        print(
+            f"Wrote {len(result.rejected_rows)} rejected AlphaMissense rows to "
+            f"{args.rejected_out}"
+        )
     print(f"Wrote {len(rows)} variants with AlphaMissense fields to {args.out}")
 
 
@@ -176,6 +184,13 @@ def cmd_summarize_clinvar(args: argparse.Namespace) -> None:
     print(f"Wrote {len(rows)} ClinVar summary rows to {args.out}")
 
 
+def cmd_summarize_alphamissense(args: argparse.Namespace) -> None:
+    alpha_rows = read_tsv(args.alpha)
+    rejected_rows = read_tsv(args.rejected) if args.rejected else None
+    rows = alphamissense_summary_rows(alpha_rows, rejected_rows)
+    write_tsv(args.out, rows, ["section", "category", "count"])
+    print(f"Wrote {len(rows)} AlphaMissense summary rows to {args.out}")
+
 def cmd_summarize_domains(args: argparse.Namespace) -> None:
     scores = read_tsv(args.scores)
     annotations = read_tsv(args.annotations)
@@ -250,12 +265,15 @@ def build_parser() -> argparse.ArgumentParser:
     alpha_parser.add_argument("--variants", required=True)
     alpha_parser.add_argument("--alphamissense", required=True)
     alpha_parser.add_argument("--out", required=True, type=Path)
+    alpha_parser.add_argument("--rejected-out", default=None, type=Path)
     alpha_parser.add_argument("--transcript-id", default=None)
     alpha_parser.add_argument("--uniprot-id", default=None)
     alpha_parser.add_argument("--position-offset", type=int, default=0)
     alpha_parser.set_defaults(func=cmd_import_alphamissense)
 
-    heuristic_parser = sub.add_parser("score-heuristic", help="Score variants with a transparent Tau heuristic baseline.")
+    heuristic_parser = sub.add_parser(
+        "score-heuristic", help="Score variants with a transparent Tau heuristic baseline."
+    )
     heuristic_parser.add_argument("--annotations", required=True)
     heuristic_parser.add_argument("--out", required=True, type=Path)
     heuristic_parser.set_defaults(func=cmd_score_heuristic)
@@ -288,9 +306,13 @@ def build_parser() -> argparse.ArgumentParser:
     priority_parser.add_argument("--out", required=True, type=Path)
     priority_parser.set_defaults(func=cmd_prioritize)
 
-    compare_parser = sub.add_parser("compare-models", help="Compare multiple score files against ClinVar labels.")
+    compare_parser = sub.add_parser(
+        "compare-models", help="Compare multiple score files against ClinVar labels."
+    )
     compare_parser.add_argument("--labels", required=True)
-    compare_parser.add_argument("--model", action="append", required=True, help="Use name:path:score_column format.")
+    compare_parser.add_argument(
+        "--model", action="append", required=True, help="Use name:path:score_column format."
+    )
     compare_parser.add_argument("--out", required=True, type=Path)
     compare_parser.set_defaults(func=cmd_compare_models)
     clinvar_summary_parser = sub.add_parser(
@@ -300,6 +322,13 @@ def build_parser() -> argparse.ArgumentParser:
     clinvar_summary_parser.add_argument("--rejected", default=None)
     clinvar_summary_parser.add_argument("--out", required=True, type=Path)
     clinvar_summary_parser.set_defaults(func=cmd_summarize_clinvar)
+    alpha_summary_parser = sub.add_parser(
+        "summarize-alphamissense", help="Summarize AlphaMissense coverage and QC rejection reasons."
+    )
+    alpha_summary_parser.add_argument("--alpha", required=True)
+    alpha_summary_parser.add_argument("--rejected", default=None)
+    alpha_summary_parser.add_argument("--out", required=True, type=Path)
+    alpha_summary_parser.set_defaults(func=cmd_summarize_alphamissense)
 
     domain_summary_parser = sub.add_parser(
         "summarize-domains", help="Summarize score distributions by Tau region."
@@ -310,7 +339,9 @@ def build_parser() -> argparse.ArgumentParser:
     domain_summary_parser.add_argument("--out", required=True, type=Path)
     domain_summary_parser.set_defaults(func=cmd_summarize_domains)
 
-    assets_parser = sub.add_parser("manuscript-assets", help="Create manuscript summary figures and markdown.")
+    assets_parser = sub.add_parser(
+        "manuscript-assets", help="Create manuscript summary figures and markdown."
+    )
     assets_parser.add_argument("--domain-summary", required=True)
     assets_parser.add_argument("--model-comparison", required=True)
     assets_parser.add_argument("--vus-priority", required=True)
@@ -338,6 +369,3 @@ def main(argv: list[str] | None = None) -> None:
 
 if __name__ == "__main__":
     main()
-
-
-

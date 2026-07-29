@@ -13,4 +13,5 @@ Generated files:
 
 - `data/processed/mapt_all_missense_variants.tsv`
 - `data/processed/mapt_clinvar_benchmark.tsv`
-
+- `data/processed/mapt_alphamissense.tsv`
+- `data/processed/mapt_alphamissense_rejected.tsv`

@@ -249,3 +249,44 @@ python -m mapt_zero_shot.cli manuscript-assets `
 
 This creates domain, model-comparison, and ESM-vs-heuristic figures, plus a short
 markdown result summary and a top VUS candidate table.
+
+## AlphaMissense external baseline
+
+AlphaMissense can be imported as an external reference model after downloading the
+public hg38 table:
+
+```powershell
+.\scripts\download_reference_data.ps1 -AlphaMissense
+python -m mapt_zero_shot.cli import-alphamissense `
+  --variants data/processed/mapt_all_missense_variants.tsv `
+  --alphamissense data/external/AlphaMissense_hg38.tsv.gz `
+  --uniprot-id P10636 `
+  --out data/processed/mapt_alphamissense.tsv `
+  --rejected-out data/processed/mapt_alphamissense_rejected.tsv
+python -m mapt_zero_shot.cli summarize-alphamissense `
+  --alpha data/processed/mapt_alphamissense.tsv `
+  --rejected data/processed/mapt_alphamissense_rejected.tsv `
+  --out results/mapt_alphamissense_qc_summary.tsv
+```
+
+The importer applies strict Tau-F reference-residue QC. This is important because
+AlphaMissense MAPT entries are indexed by Ensembl/UniProt coordinates that do not
+fully match the 441-aa Tau-F atlas. Rows whose wild-type residue does not match
+Tau-F, or whose position is outside 1-441, are written to the rejected table.
+
+AlphaMissense can also be included in model comparison:
+
+```powershell
+python -m mapt_zero_shot.cli compare-models `
+  --labels data/processed/mapt_clinvar_benchmark.tsv `
+  --model esm2_t6_8M:results/scores/mapt_esm2_t6_8M_scores.tsv:pathogenic_score `
+  --model tau_heuristic_v1:results/scores/mapt_heuristic_scores.tsv:heuristic_score `
+  --model esm1v_ensemble:results/scores/mapt_esm1v_ensemble.tsv:pathogenic_score_mean `
+  --model alphamissense:data/processed/mapt_alphamissense.tsv:alphamissense_score `
+  --out results/mapt_model_comparison.tsv
+```
+
+In the current local run, AlphaMissense covers 877 of 8379 Tau-F missense
+variants and only 2 strict ClinVar binary benchmark variants, so its AUROC/AUPRC
+should be described as an underpowered sanity check rather than a performance
+claim.

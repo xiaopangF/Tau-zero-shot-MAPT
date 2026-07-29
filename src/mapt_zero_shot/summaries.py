@@ -23,13 +23,43 @@ def clinvar_summary_rows(
         rows.append({"section": "accepted_label", **item})
 
     if rejected_rows is not None:
-        rows.append({"section": "rejected", "category": "total_rejected_rows", "count": len(rejected_rows)})
+        rows.append(
+            {"section": "rejected", "category": "total_rejected_rows", "count": len(rejected_rows)}
+        )
         for item in count_rows_by_field(rejected_rows, "reject_reason"):
             rows.append({"section": "rejected_reason", **item})
         for item in count_rows_by_field(rejected_rows, "clinvar_label"):
             rows.append({"section": "rejected_label", **item})
     return rows
 
+
+def alphamissense_summary_rows(
+    alpha_rows: list[dict[str, str]],
+    rejected_rows: list[dict[str, str]] | None = None,
+    score_column: str = "alphamissense_score",
+) -> list[dict[str, object]]:
+    scored = [row for row in alpha_rows if row.get(score_column, "") != ""]
+    rows: list[dict[str, object]] = [
+        {"section": "coverage", "category": "total_variants", "count": len(alpha_rows)},
+        {"section": "coverage", "category": "scored_variants", "count": len(scored)},
+        {
+            "section": "coverage",
+            "category": "scored_positions",
+            "count": len({row.get("position") for row in scored}),
+        },
+    ]
+    for item in count_rows_by_field(scored, "tau_region"):
+        rows.append({"section": "scored_region", **item})
+    for item in count_rows_by_field(scored, "alphamissense_class"):
+        rows.append({"section": "scored_class", **item})
+
+    if rejected_rows is not None:
+        rows.append(
+            {"section": "rejected", "category": "total_rejected_rows", "count": len(rejected_rows)}
+        )
+        for item in count_rows_by_field(rejected_rows, "reject_reason"):
+            rows.append({"section": "rejected_reason", **item})
+    return rows
 
 def _float_values(rows: list[dict[str, str]], score_column: str) -> list[float]:
     values = []
