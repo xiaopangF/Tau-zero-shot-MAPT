@@ -54,3 +54,43 @@ as a performance conclusion.
 
 The important manuscript question becomes: does the ESM-1v ensemble prioritize
 known/VUS MAPT variants beyond this transparent Tau heuristic baseline?
+
+## ESM-1v ensemble local run
+
+The full ESM-1v five-checkpoint ensemble has been run locally on the RTX 5060 GPU.
+Generated local files include:
+
+- `results/scores/mapt_esm1v_1.tsv`
+- `results/scores/mapt_esm1v_2.tsv`
+- `results/scores/mapt_esm1v_3.tsv`
+- `results/scores/mapt_esm1v_4.tsv`
+- `results/scores/mapt_esm1v_5.tsv`
+- `results/scores/mapt_esm1v_ensemble.tsv`
+- `results/mapt_esm1v_ensemble_metrics.tsv`
+- `results/mapt_esm1v_ensemble_domain_summary.tsv`
+- `results/mapt_esm1v_top50_vus_priority.tsv`
+- `results/figures/esm1v_ensemble/`
+
+Strict ClinVar binary benchmark remains too small for performance claims:
+
+- n_examples: 3
+- n_pathogenic: 1
+- n_benign: 2
+- AUROC: 0.5
+- AUPRC: 0.5
+
+Domain-level ESM-1v ensemble signal is stronger in microtubule repeat regions
+than the N-terminal projection domain. Mean `pathogenic_score_mean` by region:
+
+- R4: 13.22
+- R3: 13.21
+- R2 / exon 10: 12.96
+- R1: 12.64
+- C-terminal tail: 12.03
+- proline-rich region: 9.83
+- N-terminal projection: 3.08
+
+Interpretation: the project now has manuscript-scale zero-shot scores, but
+clinical-label evaluation is still limited by strict MAPT/Tau-F coordinate QC.
+Next manuscript work should emphasize atlas/domain/VUS analyses and add external
+baselines such as AlphaMissense.

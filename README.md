@@ -209,3 +209,26 @@ python -m mapt_zero_shot.cli compare-models `
   --model tau_heuristic_v1:results/scores/mapt_heuristic_scores.tsv:heuristic_score `
   --out results/mapt_model_comparison.tsv
 ```
+
+## CUDA environment used locally
+
+The workstation has an NVIDIA GeForce RTX 5060 Laptop GPU. The default Python
+3.14 environment had CPU-only PyTorch (`torch 2.13.0+cpu`), so CUDA was not
+visible there. A project-local Python 3.12 virtual environment was created at
+`.venv` with CUDA PyTorch:
+
+```text
+torch 2.11.0+cu128
+cuda_available True
+```
+
+Use `.\scripts\check_cuda.ps1` to verify the active project environment.
+
+For robust ESM-1v downloads, use:
+
+```powershell
+.\scripts\download_esm1v_checkpoints.ps1
+```
+
+This checks remote file sizes and prevents half-downloaded checkpoint caches from
+being mistaken for valid weights.
