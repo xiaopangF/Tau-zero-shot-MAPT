@@ -18,3 +18,5 @@ results/*
 !results/scores/.gitkeep
 
 *.egg-info/
+submission_package/**
+!submission_package/README.md
