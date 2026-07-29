@@ -8,6 +8,11 @@ from pathlib import Path
 from .annotations import annotate_variant_row
 from .baselines import heuristic_score_rows
 from .compare import compare_model_rows
+from .concordance import (
+    concordance_rows,
+    concordance_summary_rows,
+    top_concordance_rows,
+)
 from .clinvar import load_mapt_clinvar_with_qc
 from .ensemble import ensemble_score_rows
 from .evaluate import make_binary_examples, metrics_rows
@@ -251,6 +256,52 @@ def cmd_manuscript_assets(args: argparse.Namespace) -> None:
     print(f"Wrote manuscript assets to {outdir}")
 
 
+def cmd_concordance(args: argparse.Namespace) -> None:
+    annotations = read_tsv(args.annotations)
+    esm_rows = read_tsv(args.esm_scores)
+    heuristic_rows = read_tsv(args.heuristic_scores)
+    alphamissense_rows = read_tsv(args.alphamissense_scores)
+    rows = concordance_rows(
+        annotations,
+        esm_rows,
+        heuristic_rows,
+        alphamissense_rows,
+        esm_column=args.esm_column,
+        heuristic_column=args.heuristic_column,
+        alphamissense_column=args.alphamissense_column,
+        top_fraction=args.top_fraction,
+    )
+    fieldnames = [
+        "variant_id",
+        "protein_change",
+        "position",
+        "wt_aa",
+        "mut_aa",
+        "tau_region",
+        "tau_motif",
+        "charge_change",
+        "special_residue_change",
+        "esm_score",
+        "heuristic_score",
+        "alphamissense_score",
+        "esm_top_decile",
+        "heuristic_top_decile",
+        "alphamissense_top_decile",
+        "alphamissense_has_score",
+        "n_models_high",
+        "concordance_category",
+    ]
+    write_tsv(args.out, rows, fieldnames)
+    write_tsv(
+        args.summary_out,
+        concordance_summary_rows(rows),
+        ["section", "category", "count"],
+    )
+    top_rows = top_concordance_rows(rows, category=args.category, limit=args.limit)
+    write_tsv(args.top_out, top_rows, fieldnames)
+    print(f"Wrote {len(rows)} concordance rows to {args.out}")
+    print(f"Wrote {len(top_rows)} top concordance rows to {args.top_out}")
+
 def cmd_figures(args: argparse.Namespace) -> None:
     scores = read_tsv(args.scores)
     labels = read_tsv(args.labels)
@@ -365,6 +416,23 @@ def build_parser() -> argparse.ArgumentParser:
     assets_parser.add_argument("--top-n", type=int, default=10)
     assets_parser.add_argument("--outdir", required=True, type=Path)
     assets_parser.set_defaults(func=cmd_manuscript_assets)
+    concordance_parser = sub.add_parser(
+        "concordance", help="Analyze agreement and disagreement across scoring methods."
+    )
+    concordance_parser.add_argument("--annotations", required=True)
+    concordance_parser.add_argument("--esm-scores", required=True)
+    concordance_parser.add_argument("--heuristic-scores", required=True)
+    concordance_parser.add_argument("--alphamissense-scores", required=True)
+    concordance_parser.add_argument("--esm-column", default="pathogenic_score_mean")
+    concordance_parser.add_argument("--heuristic-column", default="heuristic_score")
+    concordance_parser.add_argument("--alphamissense-column", default="alphamissense_score")
+    concordance_parser.add_argument("--top-fraction", type=float, default=0.10)
+    concordance_parser.add_argument("--category", default=None)
+    concordance_parser.add_argument("--limit", type=int, default=50)
+    concordance_parser.add_argument("--out", required=True, type=Path)
+    concordance_parser.add_argument("--summary-out", required=True, type=Path)
+    concordance_parser.add_argument("--top-out", required=True, type=Path)
+    concordance_parser.set_defaults(func=cmd_concordance)
 
     fig_parser = sub.add_parser("figures", help="Create basic publication figures.")
     fig_parser.add_argument("--scores", required=True)

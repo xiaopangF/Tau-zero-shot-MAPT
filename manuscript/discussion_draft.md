@@ -77,9 +77,12 @@ it helps interpret high ESM scores that occur in known sensitive regions or
 motifs. Second, it identifies discordant variants where the model assigns high
 priority even though simple Tau rules do not, or vice versa.
 
-A future version of the manuscript should include a dedicated concordance and
-discordance table. This table would help reviewers see where the protein language
-model adds information beyond obvious handcrafted features.
+The concordance analysis provides a first version of this comparison. ESM-1v and
+the Tau heuristic shared 209 top-decile variants, while ESM-only and
+heuristic-only groups each contained 629 variants. No variant was top-decile for
+all three methods, mainly because AlphaMissense coverage was limited after strict
+Tau-F coordinate QC. These concordant and discordant groups can guide future
+variant-level review.
 
 ## Limitations
 
@@ -102,10 +105,10 @@ hypothesis-generating candidates, not clinical interpretations.
 
 ## Future work
 
-The next computational step is to add a concordance and discordance analysis
-across ESM-1v, the Tau heuristic baseline, and AlphaMissense where coverage
-exists. This would identify variants consistently prioritized by multiple methods
-and variants where methods disagree.
+The next computational step is to refine the concordance and discordance analysis
+into publication-ready supplementary tables and variant-level case studies. These
+case studies should separate variants consistently prioritized by multiple methods
+from variants where methods disagree.
 
 The next biological step is to review the top VUS candidates against additional
 evidence, including population frequency, literature reports, segregation data,

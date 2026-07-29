@@ -63,6 +63,30 @@ This result supports using the heuristic baseline as an interpretability control
 The two methods are related but not identical, which creates an opportunity to
 study variants where ESM-1v and explicit Tau-domain rules disagree.
 
+
+## Model concordance and discordance
+
+We compared ESM-1v, the transparent Tau heuristic, and AlphaMissense using a
+simple top-decile rule. A variant was considered high-priority for a method if it
+fell in that method's top 10 percent of scored variants.
+
+Across all 8379 Tau-F missense variants, 209 variants were high-priority for both
+ESM-1v and the Tau heuristic. These variants were concentrated in Tau repeat
+regions and included examples such as C322E, D314W, S258E, L315D, and I308W. This
+set represents variants where the protein language model and explicit Tau-domain
+rules point in the same direction.
+
+There were also 629 ESM-only high-priority variants and 629 heuristic-only
+high-priority variants. These discordant groups are useful for follow-up because
+they identify substitutions where the learned sequence model and handcrafted Tau
+rules disagree.
+
+No variant was high-priority for all three methods under the top-decile rule.
+This primarily reflects AlphaMissense's limited accepted coverage of the 441-aa
+Tau-F atlas after strict coordinate QC. AlphaMissense-only high-priority variants
+included K375I, K375E, K375T, K375N, and K383I, illustrating that the external
+predictor captures some candidates outside the strongest ESM/heuristic overlap.
+
 ## ClinVar VUS prioritization
 
 Because most strictly mapped ClinVar variants were VUS, the most useful clinical

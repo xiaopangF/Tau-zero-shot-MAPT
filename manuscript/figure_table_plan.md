@@ -96,6 +96,14 @@ Sources:
 
 Source: `results/mapt_esm1v_top50_vus_priority.tsv`
 
+### Supplementary Table 6: Model concordance and discordance
+
+Sources:
+
+- `results/mapt_model_concordance.tsv`
+- `results/mapt_model_concordance_summary.tsv`
+- `results/mapt_model_concordance_top.tsv`
+
 ## Immediate gaps
 
 - Add a publication-style workflow schematic.
