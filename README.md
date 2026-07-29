@@ -244,11 +244,12 @@ python -m mapt_zero_shot.cli manuscript-assets `
   --vus-priority results/mapt_esm1v_top50_vus_priority.tsv `
   --esm-scores results/scores/mapt_esm1v_ensemble.tsv `
   --heuristic-scores results/scores/mapt_heuristic_scores.tsv `
+  --clinvar-summary results/mapt_clinvar_qc_summary.tsv `
+  --alphamissense-summary results/mapt_alphamissense_qc_summary.tsv `
   --outdir results/manuscript_assets
 ```
 
-This creates domain, model-comparison, and ESM-vs-heuristic figures, plus a short
-markdown result summary and a top VUS candidate table.
+This creates workflow, domain, model-comparison, ESM-vs-heuristic, and VUS lollipop figures, plus a short markdown result summary and a top VUS candidate table.
 
 ## AlphaMissense external baseline
 

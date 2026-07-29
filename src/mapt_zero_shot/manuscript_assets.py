@@ -5,6 +5,19 @@ from __future__ import annotations
 from pathlib import Path
 from statistics import mean
 
+from .constants import REGIONS
+
+
+REGION_COLORS = {
+    "N_terminal_projection": "#8dd3c7",
+    "proline_rich_region": "#ffffb3",
+    "microtubule_repeat_R1": "#bebada",
+    "microtubule_repeat_R2_exon10": "#fb8072",
+    "microtubule_repeat_R3": "#80b1d3",
+    "microtubule_repeat_R4": "#fdb462",
+    "C_terminal_tail": "#b3de69",
+}
+
 
 def _metric_value(rows: list[dict[str, str]], metric: str, model: str | None = None) -> str:
     for row in rows:
@@ -27,6 +40,13 @@ def _join_by_variant(rows: list[dict[str, str]], value_column: str) -> dict[str,
         if value != "":
             values[row["variant_id"]] = float(value)
     return values
+
+
+def _summary_count(rows: list[dict[str, str]], section: str, category: str) -> str:
+    for row in rows:
+        if row.get("section") == section and row.get("category") == category:
+            return row.get("count", "")
+    return ""
 
 
 def pearson(x_values: list[float], y_values: list[float]) -> float:
@@ -136,6 +156,188 @@ def create_score_scatter_plot(
     return out, r, len(variants)
 
 
+def create_workflow_schematic(
+    out: Path,
+    atlas_variant_count: int,
+    clinvar_summary_rows: list[dict[str, str]] | None = None,
+    alphamissense_summary_rows: list[dict[str, str]] | None = None,
+) -> Path:
+    import matplotlib.pyplot as plt  # type: ignore
+    from matplotlib.patches import FancyArrowPatch, FancyBboxPatch  # type: ignore
+
+    clinvar_summary_rows = clinvar_summary_rows or []
+    alphamissense_summary_rows = alphamissense_summary_rows or []
+    clinvar_accepted = _summary_count(
+        clinvar_summary_rows, "accepted", "total_annotated_variants"
+    )
+    alpha_scored = _summary_count(alphamissense_summary_rows, "coverage", "scored_variants")
+
+    fig, ax = plt.subplots(figsize=(11.5, 5.4))
+    ax.set_xlim(0, 1)
+    ax.set_ylim(0, 1)
+    ax.axis("off")
+
+    boxes = [
+        ((0.05, 0.58), "Tau-F reference", "441-aa 2N4R / hTau40\nP10636-8 coordinates", "#e5f5f9"),
+        (
+            (0.28, 0.58),
+            "Missense atlas",
+            f"{atlas_variant_count:,} variants\n19 substitutions/site",
+            "#edf8e9",
+        ),
+        (
+            (0.51, 0.58),
+            "Zero-shot scoring",
+            "ESM-1v five-checkpoint\nmasked marginal scores",
+            "#fef0d9",
+        ),
+        ((0.74, 0.58), "Main outputs", "Domain signal\nVUS prioritization", "#f2f0f7"),
+        (
+            (0.28, 0.18),
+            "ClinVar QC",
+            f"strict WT match\naccepted: {clinvar_accepted or 'NA'}",
+            "#fee8c8",
+        ),
+        (
+            (0.51, 0.18),
+            "AlphaMissense QC",
+            f"strict WT match\nscored: {alpha_scored or 'NA'}",
+            "#e6f5c9",
+        ),
+    ]
+
+    for (x, y), title, body, color in boxes:
+        patch = FancyBboxPatch(
+            (x, y),
+            0.18,
+            0.22,
+            boxstyle="round,pad=0.018,rounding_size=0.018",
+            linewidth=1.1,
+            edgecolor="#404040",
+            facecolor=color,
+        )
+        ax.add_patch(patch)
+        ax.text(x + 0.09, y + 0.155, title, ha="center", va="center", weight="bold", fontsize=10)
+        ax.text(x + 0.09, y + 0.075, body, ha="center", va="center", fontsize=8.5)
+
+    arrow_pairs = [
+        ((0.23, 0.69), (0.28, 0.69)),
+        ((0.46, 0.69), (0.51, 0.69)),
+        ((0.69, 0.69), (0.74, 0.69)),
+        ((0.37, 0.58), (0.37, 0.40)),
+        ((0.60, 0.58), (0.60, 0.40)),
+        ((0.46, 0.29), (0.51, 0.29)),
+    ]
+    for start, end in arrow_pairs:
+        ax.add_patch(
+            FancyArrowPatch(
+                start,
+                end,
+                arrowstyle="-|>",
+                mutation_scale=14,
+                linewidth=1.1,
+                color="#404040",
+            )
+        )
+
+    ax.text(
+        0.05,
+        0.93,
+        "MAPT/Tau zero-shot atlas workflow",
+        ha="left",
+        va="center",
+        fontsize=15,
+        weight="bold",
+    )
+    ax.text(
+        0.05,
+        0.875,
+        "Clinical labels and external predictors are added after label-free atlas scoring.",
+        ha="left",
+        va="center",
+        fontsize=9,
+        color="#333333",
+    )
+    ax.text(
+        0.74,
+        0.22,
+        (
+            "Interpretation rule:\nreport QC and coverage;\n"
+            "do not overclaim tiny\nClinVar AUROC/AUPRC."
+        ),
+        ha="left",
+        va="center",
+        fontsize=8.5,
+        color="#333333",
+    )
+
+    fig.tight_layout()
+    out.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(out, dpi=300)
+    plt.close(fig)
+    return out
+
+
+def create_vus_lollipop_plot(
+    vus_rows: list[dict[str, str]],
+    out: Path,
+    limit: int = 15,
+    score_column: str = "pathogenic_score_mean",
+) -> Path:
+    import matplotlib.pyplot as plt  # type: ignore
+    from matplotlib.lines import Line2D  # type: ignore
+
+    rows = sorted(vus_rows[:limit], key=lambda row: int(row["position"]))
+    fig, ax = plt.subplots(figsize=(11.5, 5.2))
+
+    region_y = -0.9
+    for region, start, end in REGIONS:
+        ax.axvspan(
+            start,
+            end,
+            ymin=0.02,
+            ymax=0.12,
+            color=REGION_COLORS.get(region, "#dddddd"),
+            alpha=0.85,
+        )
+        label = region.replace("microtubule_repeat_", "").replace("_", " ")
+        ax.text((start + end) / 2, region_y, label, ha="center", va="center", fontsize=7)
+
+    max_score = max(float(row[score_column]) for row in rows) if rows else 1.0
+    for index, row in enumerate(rows):
+        position = int(row["position"])
+        score = float(row[score_column])
+        region = row.get("tau_region", "")
+        color = REGION_COLORS.get(region, "#666666")
+        ax.vlines(position, 0, score, color="#555555", linewidth=1.0, alpha=0.75)
+        ax.scatter(position, score, s=54, color=color, edgecolor="#222222", linewidth=0.5, zorder=3)
+        label_y = score + 0.42 + (index % 2) * 0.42
+        ax.text(position, label_y, row.get("variant_id", ""), ha="center", va="bottom", fontsize=8)
+
+    ax.set_xlim(1, 441)
+    ax.set_ylim(-1.25, max_score + 1.7)
+    ax.set_xlabel("Tau-F amino-acid position")
+    ax.set_ylabel("ESM-1v ensemble pathogenic score")
+    ax.set_title(f"Top {len(rows)} ClinVar VUS candidates across Tau-F")
+    ax.spines[["top", "right"]].set_visible(False)
+    ax.grid(axis="y", color="#dddddd", linewidth=0.6, alpha=0.8)
+
+    handles = [
+        Line2D(
+            [0], [0], marker="o", color="none", markerfacecolor=color, label=region, markersize=7
+        )
+        for region, color in REGION_COLORS.items()
+        if any(row.get("tau_region") == region for row in rows)
+    ]
+    ax.legend(handles=handles, loc="upper right", fontsize=7, frameon=False, ncols=2)
+
+    fig.tight_layout()
+    out.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(out, dpi=300)
+    plt.close(fig)
+    return out
+
+
 def write_top_vus_markdown(vus_rows: list[dict[str, str]], out: Path, limit: int = 10) -> Path:
     out.parent.mkdir(parents=True, exist_ok=True)
     rows = vus_rows[:limit]
@@ -150,7 +352,8 @@ def write_top_vus_markdown(vus_rows: list[dict[str, str]], out: Path, limit: int
     for index, row in enumerate(rows, start=1):
         lines.append(
             "| "
-            f"{index} | {row.get('variant_id', '')} | {float(row.get('pathogenic_score_mean', 'nan')):.2f} | "
+            f"{index} | {row.get('variant_id', '')} | "
+            f"{float(row.get('pathogenic_score_mean', 'nan')):.2f} | "
             f"{row.get('tau_region', '')} | {row.get('mechanism_summary', '')} | "
             f"{row.get('clinvar_review_status', '')} |"
         )
@@ -177,25 +380,38 @@ def write_results_summary(
         "",
         "## Strict ClinVar Benchmark",
         "",
-        f"The strict P/LP vs B/LB benchmark remains very small. ESM-1v ensemble AUROC={esm_auroc}, AUPRC={esm_auprc}. The transparent Tau heuristic AUROC={heuristic_auroc}. These values should be treated as smoke checks, not clinical performance claims.",
+        (
+            "The strict P/LP vs B/LB benchmark remains very small. "
+            f"ESM-1v ensemble AUROC={esm_auroc}, AUPRC={esm_auprc}. "
+            f"The transparent Tau heuristic AUROC={heuristic_auroc}. "
+            "These values should be treated as smoke checks, not clinical performance claims."
+        ),
         "",
         "## Domain Signal",
         "",
-        "Mean ESM-1v pathogenic score is highest in the microtubule repeat regions and lowest in the N-terminal projection domain.",
+        (
+            "Mean ESM-1v pathogenic score is highest in the microtubule repeat "
+            "regions and lowest in the N-terminal projection domain."
+        ),
         "",
         "| Region | Mean Score | Top 10% Fraction |",
         "|---|---:|---:|",
     ]
     for row in top_domains:
         lines.append(
-            f"| {row['tau_region']} | {float(row['mean_score']):.2f} | {float(row['top_10pct_global_fraction']):.3f} |"
+            f"| {row['tau_region']} | {float(row['mean_score']):.2f} | "
+            f"{float(row['top_10pct_global_fraction']):.3f} |"
         )
     lines.extend(
         [
             "",
             "## ESM Versus Heuristic Baseline",
             "",
-            f"Across {scatter_n} variants, ESM-1v ensemble and the transparent Tau heuristic have Pearson r={scatter_r:.2f}. This comparison helps test whether the language model adds signal beyond explicit Tau-domain rules.",
+            (
+                f"Across {scatter_n} variants, ESM-1v ensemble and the transparent Tau "
+                f"heuristic have Pearson r={scatter_r:.2f}. This comparison helps test "
+                "whether the language model adds signal beyond explicit Tau-domain rules."
+            ),
             "",
             "## Top VUS",
             "",
@@ -203,7 +419,9 @@ def write_results_summary(
     )
     for index, row in enumerate(vus_rows[:5], start=1):
         lines.append(
-            f"{index}. {row.get('variant_id', '')}: score={float(row.get('pathogenic_score_mean', 'nan')):.2f}; {row.get('mechanism_summary', '')}"
+            f"{index}. {row.get('variant_id', '')}: "
+            f"score={float(row.get('pathogenic_score_mean', 'nan')):.2f}; "
+            f"{row.get('mechanism_summary', '')}"
         )
     out.write_text("\n".join(lines) + "\n", encoding="utf-8")
     return out

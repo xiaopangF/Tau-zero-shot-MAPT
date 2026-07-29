@@ -17,7 +17,9 @@ from .io import merge_fieldnames, read_tsv, write_tsv
 from .manuscript_assets import (
     create_domain_summary_plot,
     create_model_comparison_plot,
+    create_vus_lollipop_plot,
     create_score_scatter_plot,
+    create_workflow_schematic,
     write_results_summary,
     write_top_vus_markdown,
 )
@@ -220,12 +222,23 @@ def cmd_manuscript_assets(args: argparse.Namespace) -> None:
     vus_rows = read_tsv(args.vus_priority)
     esm_rows = read_tsv(args.esm_scores)
     heuristic_rows = read_tsv(args.heuristic_scores)
+    clinvar_summary_rows_input = read_tsv(args.clinvar_summary) if args.clinvar_summary else None
+    alphamissense_summary_rows_input = (
+        read_tsv(args.alphamissense_summary) if args.alphamissense_summary else None
+    )
 
+    create_workflow_schematic(
+        outdir / "figure_workflow_schematic.png",
+        atlas_variant_count=len(esm_rows),
+        clinvar_summary_rows=clinvar_summary_rows_input,
+        alphamissense_summary_rows=alphamissense_summary_rows_input,
+    )
     create_domain_summary_plot(domain_rows, outdir / "figure_domain_summary.png")
     create_model_comparison_plot(comparison_rows, outdir / "figure_model_comparison.png")
     _, scatter_r, scatter_n = create_score_scatter_plot(
         esm_rows, heuristic_rows, outdir / "figure_esm1v_vs_heuristic.png"
     )
+    create_vus_lollipop_plot(vus_rows, outdir / "figure_vus_lollipop.png", args.top_n)
     write_top_vus_markdown(vus_rows, outdir / "top_vus_candidates.md", args.top_n)
     write_results_summary(
         domain_rows,
@@ -347,6 +360,8 @@ def build_parser() -> argparse.ArgumentParser:
     assets_parser.add_argument("--vus-priority", required=True)
     assets_parser.add_argument("--esm-scores", required=True)
     assets_parser.add_argument("--heuristic-scores", required=True)
+    assets_parser.add_argument("--clinvar-summary", default=None)
+    assets_parser.add_argument("--alphamissense-summary", default=None)
     assets_parser.add_argument("--top-n", type=int, default=10)
     assets_parser.add_argument("--outdir", required=True, type=Path)
     assets_parser.set_defaults(func=cmd_manuscript_assets)

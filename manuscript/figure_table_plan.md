@@ -15,7 +15,7 @@ Current source files:
 - `data/processed/mapt_alphamissense.tsv`
 - `data/processed/mapt_alphamissense_rejected.tsv`
 
-Status: needs a schematic figure.
+Status: generated locally as `results/manuscript_assets/figure_workflow_schematic.png`.
 
 ### Figure 2: ESM-1v Tau-F missense atlas
 
@@ -64,7 +64,7 @@ Current source files:
 - `results/mapt_esm1v_top50_vus_priority.tsv`
 - `results/manuscript_assets/top_vus_candidates.md`
 
-Status: table exists; figure or lollipop plot still needed.
+Status: generated locally as `results/manuscript_assets/figure_vus_lollipop.png`; table also exists.
 
 ## Supplementary tables
 
