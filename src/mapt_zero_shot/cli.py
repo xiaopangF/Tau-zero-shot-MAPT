@@ -14,6 +14,13 @@ from .evaluate import make_binary_examples, metrics_rows
 from .external_scores import load_alphamissense
 from .figures import create_basic_figures
 from .io import merge_fieldnames, read_tsv, write_tsv
+from .manuscript_assets import (
+    create_domain_summary_plot,
+    create_model_comparison_plot,
+    create_score_scatter_plot,
+    write_results_summary,
+    write_top_vus_markdown,
+)
 from .prioritize import prioritize_rows
 from .score_esm import masked_marginal_scores
 from .summaries import clinvar_summary_rows, domain_summary_rows
@@ -190,6 +197,32 @@ def cmd_summarize_domains(args: argparse.Namespace) -> None:
     print(f"Wrote {len(rows)} domain summary rows to {args.out}")
 
 
+def cmd_manuscript_assets(args: argparse.Namespace) -> None:
+    outdir = args.outdir
+    outdir.mkdir(parents=True, exist_ok=True)
+    domain_rows = read_tsv(args.domain_summary)
+    comparison_rows = read_tsv(args.model_comparison)
+    vus_rows = read_tsv(args.vus_priority)
+    esm_rows = read_tsv(args.esm_scores)
+    heuristic_rows = read_tsv(args.heuristic_scores)
+
+    create_domain_summary_plot(domain_rows, outdir / "figure_domain_summary.png")
+    create_model_comparison_plot(comparison_rows, outdir / "figure_model_comparison.png")
+    _, scatter_r, scatter_n = create_score_scatter_plot(
+        esm_rows, heuristic_rows, outdir / "figure_esm1v_vs_heuristic.png"
+    )
+    write_top_vus_markdown(vus_rows, outdir / "top_vus_candidates.md", args.top_n)
+    write_results_summary(
+        domain_rows,
+        comparison_rows,
+        vus_rows,
+        scatter_r,
+        scatter_n,
+        outdir / "results_summary.md",
+    )
+    print(f"Wrote manuscript assets to {outdir}")
+
+
 def cmd_figures(args: argparse.Namespace) -> None:
     scores = read_tsv(args.scores)
     labels = read_tsv(args.labels)
@@ -277,6 +310,16 @@ def build_parser() -> argparse.ArgumentParser:
     domain_summary_parser.add_argument("--out", required=True, type=Path)
     domain_summary_parser.set_defaults(func=cmd_summarize_domains)
 
+    assets_parser = sub.add_parser("manuscript-assets", help="Create manuscript summary figures and markdown.")
+    assets_parser.add_argument("--domain-summary", required=True)
+    assets_parser.add_argument("--model-comparison", required=True)
+    assets_parser.add_argument("--vus-priority", required=True)
+    assets_parser.add_argument("--esm-scores", required=True)
+    assets_parser.add_argument("--heuristic-scores", required=True)
+    assets_parser.add_argument("--top-n", type=int, default=10)
+    assets_parser.add_argument("--outdir", required=True, type=Path)
+    assets_parser.set_defaults(func=cmd_manuscript_assets)
+
     fig_parser = sub.add_parser("figures", help="Create basic publication figures.")
     fig_parser.add_argument("--scores", required=True)
     fig_parser.add_argument("--labels", required=True)
@@ -295,5 +338,6 @@ def main(argv: list[str] | None = None) -> None:
 
 if __name__ == "__main__":
     main()
+
 
 

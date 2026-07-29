@@ -94,3 +94,17 @@ Interpretation: the project now has manuscript-scale zero-shot scores, but
 clinical-label evaluation is still limited by strict MAPT/Tau-F coordinate QC.
 Next manuscript work should emphasize atlas/domain/VUS analyses and add external
 baselines such as AlphaMissense.
+
+## Manuscript assets generated
+
+Local manuscript assets were generated in `results/manuscript_assets/`:
+
+- `figure_domain_summary.png`
+- `figure_model_comparison.png`
+- `figure_esm1v_vs_heuristic.png`
+- `results_summary.md`
+- `top_vus_candidates.md`
+
+The ESM-1v ensemble and Tau heuristic have Pearson r=0.58 across all 8379
+variants, suggesting moderate overlap between learned zero-shot signal and the
+transparent Tau-rule baseline. This supports including both in the manuscript.

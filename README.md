@@ -232,3 +232,20 @@ For robust ESM-1v downloads, use:
 
 This checks remote file sizes and prevents half-downloaded checkpoint caches from
 being mistaken for valid weights.
+
+## Manuscript assets
+
+After running ESM-1v ensemble, generate manuscript-oriented plots and markdown:
+
+```powershell
+python -m mapt_zero_shot.cli manuscript-assets `
+  --domain-summary results/mapt_esm1v_ensemble_domain_summary.tsv `
+  --model-comparison results/mapt_model_comparison.tsv `
+  --vus-priority results/mapt_esm1v_top50_vus_priority.tsv `
+  --esm-scores results/scores/mapt_esm1v_ensemble.tsv `
+  --heuristic-scores results/scores/mapt_heuristic_scores.tsv `
+  --outdir results/manuscript_assets
+```
+
+This creates domain, model-comparison, and ESM-vs-heuristic figures, plus a short
+markdown result summary and a top VUS candidate table.
