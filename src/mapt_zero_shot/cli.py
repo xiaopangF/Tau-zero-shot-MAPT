@@ -30,6 +30,7 @@ from .manuscript_assets import (
 )
 from .prioritize import prioritize_rows
 from .score_esm import masked_marginal_scores
+from .submission_qc import submission_qc_rows, write_submission_qc_markdown
 from .summaries import alphamissense_summary_rows, clinvar_summary_rows, domain_summary_rows
 from .variants import generate_missense_variants
 
@@ -302,6 +303,23 @@ def cmd_concordance(args: argparse.Namespace) -> None:
     print(f"Wrote {len(rows)} concordance rows to {args.out}")
     print(f"Wrote {len(top_rows)} top concordance rows to {args.top_out}")
 
+def cmd_submission_qc(args: argparse.Namespace) -> None:
+    manuscript_text = Path(args.manuscript).read_text(encoding="utf-8")
+    required_files = [Path(path) for path in args.required_file]
+    rows = submission_qc_rows(
+        manuscript_text,
+        variants=read_tsv(args.variants),
+        clinvar_summary=read_tsv(args.clinvar_summary),
+        alphamissense_summary=read_tsv(args.alphamissense_summary),
+        concordance_summary=read_tsv(args.concordance_summary),
+        required_files=required_files,
+    )
+    write_submission_qc_markdown(rows, args.out)
+    failures = sum(1 for row in rows if row["status"] == "fail")
+    warnings = sum(1 for row in rows if row["status"] == "warn")
+    print(f"Wrote submission QC report to {args.out}")
+    print(f"Submission QC: {failures} failures, {warnings} warnings")
+
 def cmd_figures(args: argparse.Namespace) -> None:
     scores = read_tsv(args.scores)
     labels = read_tsv(args.labels)
@@ -433,6 +451,17 @@ def build_parser() -> argparse.ArgumentParser:
     concordance_parser.add_argument("--summary-out", required=True, type=Path)
     concordance_parser.add_argument("--top-out", required=True, type=Path)
     concordance_parser.set_defaults(func=cmd_concordance)
+    submission_qc_parser = sub.add_parser(
+        "submission-qc", help="Check manuscript draft consistency before submission."
+    )
+    submission_qc_parser.add_argument("--manuscript", required=True)
+    submission_qc_parser.add_argument("--variants", required=True)
+    submission_qc_parser.add_argument("--clinvar-summary", required=True)
+    submission_qc_parser.add_argument("--alphamissense-summary", required=True)
+    submission_qc_parser.add_argument("--concordance-summary", required=True)
+    submission_qc_parser.add_argument("--required-file", action="append", default=[])
+    submission_qc_parser.add_argument("--out", required=True, type=Path)
+    submission_qc_parser.set_defaults(func=cmd_submission_qc)
 
     fig_parser = sub.add_parser("figures", help="Create basic publication figures.")
     fig_parser.add_argument("--scores", required=True)
