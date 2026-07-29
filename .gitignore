@@ -20,3 +20,11 @@ results/*
 *.egg-info/
 submission_package/**
 !submission_package/README.md
+manuscript/latex/*.aux
+manuscript/latex/*.bbl
+manuscript/latex/*.blg
+manuscript/latex/*.log
+manuscript/latex/*.out
+manuscript/latex/*.toc
+manuscript/latex/*.fls
+manuscript/latex/*.fdb_latexmk
