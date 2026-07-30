@@ -234,6 +234,22 @@ being mistaken for valid weights.
 After running the ESM-1v ensemble, the workflow can generate summary plots and
 ranked tables under `results/`. Generated result files are ignored by Git and should
 be archived separately when needed.
+## Physicochemical grid-search model
+
+Use `score-physchem-grid` to compute three simple mutation features and search for
+linear weights that prioritize the five established MAPT controls `G272V`, `P301L`,
+`V337M`, `R406W`, and `N279K`:
+
+```powershell
+python -m mapt_zero_shot.cli score-physchem-grid `
+  --variants data/processed/mapt_all_missense_variants.tsv `
+  --out results/scores/mapt_physchem_grid_ranked.tsv `
+  --summary-out results/mapt_physchem_grid_summary.tsv
+```
+
+The features are Kyte-Doolittle hydrophobicity delta, Chou-Fasman beta-sheet
+propensity delta, and net-charge delta. The summary table reports the best weights,
+how many controls enter the top 1%, and their mean rank.
 ## AlphaMissense external baseline
 
 AlphaMissense can be imported as an external reference model after downloading the

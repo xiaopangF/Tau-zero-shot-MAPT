@@ -24,6 +24,12 @@ from .evaluate import make_binary_examples, metrics_rows
 from .external_scores import load_alphamissense_with_qc
 from .figures import create_basic_figures
 from .io import merge_fieldnames, read_tsv, write_tsv
+from .physchem import (
+    feature_rows,
+    grid_search_weights,
+    ranked_physchem_rows,
+    summary_rows as physchem_summary_rows,
+)
 from .manuscript_assets import (
     create_domain_summary_plot,
     create_model_comparison_plot,
@@ -104,6 +110,54 @@ def cmd_import_alphamissense(args: argparse.Namespace) -> None:
         )
     print(f"Wrote {len(rows)} variants with AlphaMissense fields to {args.out}")
 
+
+def cmd_score_physchem_grid(args: argparse.Namespace) -> None:
+    variants = read_tsv(args.variants)
+    rows = feature_rows(variants)
+    result = grid_search_weights(
+        rows,
+        controls=tuple(args.control),
+        grid_min=args.grid_min,
+        grid_max=args.grid_max,
+        grid_step=args.grid_step,
+        top_fraction=args.top_fraction,
+    )
+    ranked = ranked_physchem_rows(rows, result.weights, controls=tuple(args.control))
+    fieldnames = [
+        "variant_id",
+        "protein_change",
+        "position",
+        "wt_aa",
+        "mut_aa",
+        "hydrophobicity_delta",
+        "beta_sheet_delta",
+        "net_charge_delta",
+        "physchem_score",
+        "physchem_rank",
+        "physchem_top_fraction",
+        "physchem_top_percent",
+        "gold_standard_control",
+    ]
+    write_tsv(args.out, ranked, fieldnames)
+    write_tsv(
+        args.summary_out,
+        physchem_summary_rows(
+            result, args.grid_min, args.grid_max, args.grid_step, args.top_fraction
+        ),
+        ["metric", "value"],
+    )
+    print(
+        "Best weights: "
+        f"hydrophobicity={result.weights.hydrophobicity_delta}, "
+        f"beta_sheet={result.weights.beta_sheet_delta}, "
+        f"net_charge={result.weights.net_charge_delta}"
+    )
+    print(
+        f"Gold-standard controls in top {args.top_fraction:.2%}: "
+        f"{result.controls_in_top_fraction}/{len(result.control_ranks)}; "
+        f"mean rank={result.mean_control_rank:.2f}"
+    )
+    print(f"Wrote ranked variants to {args.out}")
 
 def cmd_score_heuristic(args: argparse.Namespace) -> None:
     annotations = read_tsv(args.annotations)
@@ -374,6 +428,24 @@ def build_parser() -> argparse.ArgumentParser:
     alpha_parser.add_argument("--position-offset", type=int, default=0)
     alpha_parser.set_defaults(func=cmd_import_alphamissense)
 
+    physchem_parser = sub.add_parser(
+        "score-physchem-grid",
+        help="Grid-search hydrophobicity, beta-sheet, and charge weights.",
+    )
+    physchem_parser.add_argument("--variants", required=True)
+    physchem_parser.add_argument("--out", required=True, type=Path)
+    physchem_parser.add_argument("--summary-out", required=True, type=Path)
+    physchem_parser.add_argument("--grid-min", type=float, default=-5.0)
+    physchem_parser.add_argument("--grid-max", type=float, default=5.0)
+    physchem_parser.add_argument("--grid-step", type=float, default=0.5)
+    physchem_parser.add_argument("--top-fraction", type=float, default=0.01)
+    physchem_parser.add_argument(
+        "--control",
+        action="append",
+        default=["G272V", "P301L", "V337M", "R406W", "N279K"],
+        help="Gold-standard control variant ID. May be repeated.",
+    )
+    physchem_parser.set_defaults(func=cmd_score_physchem_grid)
     heuristic_parser = sub.add_parser(
         "score-heuristic", help="Score variants with a transparent Tau heuristic baseline."
     )
