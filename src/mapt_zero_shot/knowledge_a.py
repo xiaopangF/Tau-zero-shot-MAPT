@@ -10,7 +10,6 @@ from .physchem import GOLD_STANDARD_CONTROLS, KYTE_DOOLITTLE, NET_CHARGE
 R_REGION_INTERVALS = ((244, 274), (275, 305), (306, 336), (337, 368))
 SCHEME_A_PTM_SITES = (202, 205, 208, 210, 214, 217, 235, 262, 396, 400, 403, 404)
 MICROTUBULE_INTERFACE_INTERVALS = (
-    (255, 260),
     (270, 274),
     (280, 285),
     (295, 300),
@@ -101,12 +100,21 @@ def splicing_proximity_score(row: dict[str, object]) -> float:
     return 0.0
 
 
+def microtubule_interface_disturbance_strength(row: dict[str, object]) -> float:
+    """Physicochemical disturbance magnitude within a microtubule interface interval."""
+
+    beta_delta = _beta_delta(row)
+    beta_term = beta_delta / 0.3 if beta_delta > 0 else 0.0
+    return abs(_hydrophobicity_delta(row)) / 1.5 + abs(_net_charge_delta(row)) / 0.5 + beta_term
+
+
 def microtubule_interface_score(row: dict[str, object]) -> float:
-    """Feature 5: fixed prior for Tau residues at the microtubule interface."""
+    """Feature 5: interface synergy score requiring position and disturbance."""
 
     position = int(row["position"])
-    if any(start <= position <= end for start, end in MICROTUBULE_INTERFACE_INTERVALS):
-        return 1.5
+    in_interface = any(start <= position <= end for start, end in MICROTUBULE_INTERFACE_INTERVALS)
+    if in_interface and microtubule_interface_disturbance_strength(row) >= 1.5:
+        return 2.0
     return 0.0
 
 
@@ -150,6 +158,7 @@ def score_scheme_a_rows(
         beta_score = directed_beta_disruption_score(row)
         ptm_score = ptm_microenvironment_score(row)
         splicing_score = splicing_proximity_score(row)
+        interface_strength = microtubule_interface_disturbance_strength(row)
         interface_score = microtubule_interface_score(row)
         baseline_z = baseline_scores[variant_id]
         final_score = (
@@ -161,6 +170,7 @@ def score_scheme_a_rows(
                 "directed_beta_score": beta_score,
                 "ptm_microenvironment_score": ptm_score,
                 "splicing_proximity_score": splicing_score,
+                "microtubule_interface_disturbance_strength": interface_strength,
                 "microtubule_interface_score": interface_score,
                 "scheme_a_final_score": final_score,
                 "gold_standard_control": str(variant_id in control_set),
@@ -207,7 +217,7 @@ def scheme_a_summary_rows(
     cutoff = ceil(len(ranked_rows) * top_fraction)
     in_top = sum(rank <= cutoff for rank in ranks.values())
     rows: list[dict[str, object]] = [
-        {"metric": "model_type", "value": "scheme_a_knowledge_driven_with_interface"},
+        {"metric": "model_type", "value": "scheme_a_knowledge_driven_with_interface_synergy"},
         {"metric": "uses_gold_standard_labels_for_scoring", "value": "False"},
         {"metric": "n_variants", "value": len(ranked_rows)},
         {"metric": "top_fraction", "value": top_fraction},

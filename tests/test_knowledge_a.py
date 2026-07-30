@@ -1,5 +1,6 @@
 from mapt_zero_shot.knowledge_a import (
     directed_beta_disruption_score,
+    microtubule_interface_disturbance_strength,
     microtubule_interface_score,
     ptm_microenvironment_score,
     score_scheme_a_rows,
@@ -31,11 +32,17 @@ def test_scheme_a_splicing_score_uses_distance_to_285():
     assert splicing_proximity_score({"position": "259"}) == 0.0
 
 
-def test_scheme_a_microtubule_interface_score_uses_fixed_intervals_once():
-    assert microtubule_interface_score({"position": "255"}) == 1.5
-    assert microtubule_interface_score({"position": "285"}) == 1.5
-    assert microtubule_interface_score({"position": "337"}) == 0.0
-    assert microtubule_interface_score({"position": "346"}) == 0.0
+def test_scheme_a_microtubule_interface_score_requires_interval_and_disturbance():
+    g272v = feature_row({"variant_id": "G272V", "position": "272", "wt_aa": "G", "mut_aa": "V"})
+    v337m = feature_row({"variant_id": "V337M", "position": "337", "wt_aa": "V", "mut_aa": "M"})
+    weak = feature_row({"variant_id": "G272S", "position": "272", "wt_aa": "G", "mut_aa": "S"})
+    excluded = feature_row({"variant_id": "K255V", "position": "255", "wt_aa": "K", "mut_aa": "V"})
+
+    assert microtubule_interface_disturbance_strength(g272v) >= 1.5
+    assert microtubule_interface_score(g272v) == 2.0
+    assert microtubule_interface_score(v337m) == 0.0
+    assert microtubule_interface_score(weak) == 0.0
+    assert microtubule_interface_score(excluded) == 0.0
 
 
 def test_score_scheme_a_rows_outputs_final_rank_and_gold_details():
@@ -58,5 +65,5 @@ def test_score_scheme_a_rows_outputs_final_rank_and_gold_details():
     assert gold[0]["directed_beta_score"] == 2.5
     assert "scheme_a_final_score" in gold[0]
     assert "scheme_a_rank" in gold[0]
-    assert summary["model_type"] == "scheme_a_knowledge_driven_with_interface"
+    assert summary["model_type"] == "scheme_a_knowledge_driven_with_interface_synergy"
     assert summary["uses_gold_standard_labels_for_scoring"] == "False"
