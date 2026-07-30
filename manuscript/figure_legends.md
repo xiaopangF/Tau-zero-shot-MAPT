@@ -94,3 +94,9 @@ main-model benchmark.
 
 Ranked list of ClinVar VUS candidates prioritized by ESM-1v ensemble score,
 including region, mechanism annotation, review status, and score.
+### Supplementary Figure 1. Calibration against established MAPT pathogenic controls
+
+Global ESM-1v atlas rank of five established MAPT missense controls. Dashed lines
+mark the top 1%, 5%, and 10% cutoffs. None of the five controls entered the top
+10%, so the current score is interpreted as prioritization evidence rather than a
+clinically calibrated pathogenicity probability.

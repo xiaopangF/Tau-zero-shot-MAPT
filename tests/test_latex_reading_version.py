@@ -8,6 +8,8 @@ def test_latex_reading_version_includes_core_assets_and_citations():
     tex = (ROOT / "manuscript" / "latex" / "main.tex").read_text(encoding="utf-8")
 
     assert r"\bibliography{../references}" in tex
+    assert r"\usepackage[numbers,sort&compress]{natbib}" in tex
+    assert r"\bibliographystyle{unsrtnat}" in tex
     assert "figure_workflow_schematic.png" in tex
     assert "missense_heatmap.png" in tex
     assert "figure_vus_lollipop.png" in tex

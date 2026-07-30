@@ -115,3 +115,14 @@ Discussion.
 Large generated TSV files are not committed to GitHub. For journal submission,
 copy the current source files to the proposed supplementary-table filenames and
 upload them as supplementary data or deposit them in an external data repository.
+## Supplementary Table 7. Established MAPT pathogenic-control calibration
+
+Proposed file name: `mapt_esm1v_positive_controls.tsv`
+
+Description: ESM-1v ensemble scores, global atlas ranks, and top-percentile flags for
+G272V, P301L, V337M, R406W, and N279K. This table documents calibration against
+known disease-associated missense controls and prevents the atlas from being
+presented as clinically calibrated without evidence.
+
+Use in manuscript: supports the positive-control calibration Results section and
+Supplementary Figure 1.

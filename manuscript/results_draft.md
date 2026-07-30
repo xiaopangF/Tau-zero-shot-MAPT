@@ -64,28 +64,31 @@ The two methods are related but not identical, which creates an opportunity to
 study variants where ESM-1v and explicit Tau-domain rules disagree.
 
 
-## Model concordance and discordance
+## ESM/heuristic agreement and discordance
 
-We compared ESM-1v, the transparent Tau heuristic, and AlphaMissense using a
-simple top-decile rule. A variant was considered high-priority for a method if it
-fell in that method's top 10 percent of scored variants.
+To test whether the language-model scores merely reproduced explicit Tau rules, we
+compared ESM-1v with the transparent Tau heuristic across the complete 8379-variant
+atlas. Using a top-decile rule, 209 variants were high-priority for both methods,
+while 629 were ESM-only and 629 were heuristic-only. These groups identify variants
+where learned sequence constraints and hand-coded Tau biology agree or disagree.
+AlphaMissense was not included in this full-atlas concordance claim because it
+received accepted scores for only 877 of 8379 variants.
 
-Across all 8379 Tau-F missense variants, 209 variants were high-priority for both
-ESM-1v and the Tau heuristic. These variants were concentrated in Tau repeat
-regions and included examples such as C322E, D314W, S258E, L315D, and I308W. This
-set represents variants where the protein language model and explicit Tau-domain
-rules point in the same direction.
+## Calibration against established MAPT pathogenic controls
 
-There were also 629 ESM-only high-priority variants and 629 heuristic-only
-high-priority variants. These discordant groups are useful for follow-up because
-they identify substitutions where the learned sequence model and handcrafted Tau
-rules disagree.
+We separately evaluated five established MAPT missense controls: G272V, P301L,
+V337M, R406W, and N279K. This was a calibration check, not a model-training step.
+All five variants were present in the 8379-variant atlas, but none entered the ESM-1v
+top 10%. G272V ranked 2097/8379 (top 25.03%), P301L ranked 3161/8379 (top
+37.73%), N279K ranked 3076/8379 (top 36.71%), R406W ranked 3184/8379 (top
+38.00%), and V337M ranked 3870/8379 (top 46.19%). The median control position was
+37.73% from the top of the atlas.
 
-No variant was high-priority for all three methods under the top-decile rule.
-This primarily reflects AlphaMissense's limited accepted coverage of the 441-aa
-Tau-F atlas after strict coordinate QC. AlphaMissense-only high-priority variants
-included K375I, K375E, K375T, K375N, and K383I, illustrating that the external
-predictor captures some candidates outside the strongest ESM/heuristic overlap.
+This result is an important limitation. ESM-1v should not be interpreted as a
+clinically calibrated MAPT pathogenicity classifier in the current implementation.
+Instead, the score is most defensibly used as a sequence-compatibility prioritization
+layer, especially when combined with domain annotations and independent evidence.
+The result also motivates future Tau-specific calibration and functional validation.
 
 ## ClinVar VUS prioritization
 
@@ -101,28 +104,22 @@ The top ESM-1v-ranked ClinVar VUS candidates were:
 | 4 | T377A | 7.02 | C_terminal_tail | region signal |
 | 5 | D34Y | 4.12 | N_terminal_projection | charge_gain_or_loss |
 
-These variants are candidates for literature review, database cross-checking,
+These variants are candidates for literature review, population-frequency checking,
 and possible experimental prioritization. They should not be described as
 reclassified pathogenic variants without independent evidence.
 
-## AlphaMissense provides an external QC and coverage comparison
+## AlphaMissense coverage and QC (supplementary analysis)
 
-We imported the public AlphaMissense hg38 table as an external reference model
-using strict Tau-F reference-residue QC. AlphaMissense scores were available for
-877 of 8379 Tau-F missense variants, covering 149 positions. Among scored
-variants, 798 were AlphaMissense likely benign, 67 ambiguous, and 12 likely
-pathogenic.
+We imported the public AlphaMissense hg38 table as an external reference using
+strict Tau-F reference-residue QC. AlphaMissense scores were available for 877 of
+8379 Tau-F missense variants (10.5%), covering 149 positions. Among scored variants,
+798 were AlphaMissense likely benign, 67 ambiguous, and 12 likely pathogenic.
 
 The importer rejected 3932 MAPT AlphaMissense rows after filtering for P10636:
 2048 were outside the 441-aa Tau-F reference range, and 1884 had a reference
-amino acid mismatch. This confirms that AlphaMissense is useful as an external
-reference and coordinate-QC example, but its direct coverage of the 441-aa Tau-F
-atlas is limited.
-
-In the strict ClinVar binary benchmark, AlphaMissense scored only 2 examples.
-Therefore, its apparent AUROC/AUPRC in the local model-comparison table should
-not be reported as a performance claim.
-
+amino-acid mismatch. AlphaMissense is therefore retained as a supplementary
+coordinate-QC and external-reference analysis, not as a primary full-atlas
+head-to-head comparator.
 ## Current interpretation
 
 The current evidence supports a manuscript centered on atlas generation,

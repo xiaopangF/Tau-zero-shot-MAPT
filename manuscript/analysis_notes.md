@@ -134,3 +134,11 @@ ClinVar binary benchmark it scores only 2 variants, so the AlphaMissense AUROC
 and AUPRC from `results/mapt_model_comparison.tsv` should not be used as a
 manuscript performance claim. The stronger manuscript use is to report coverage,
 coordinate mismatch, and selected concordance/discordance examples.
+
+## Positive-control calibration
+
+The five-control calibration was run with `scripts/run_positive_control_calibration.ps1`.
+All five established MAPT missense controls were found in the 8379-variant atlas, but
+none entered the ESM-1v top 10%. The best-ranked control was G272V at rank 2097/8379
+(top 25.03%). This is now treated as a major calibration limitation rather than a
+hidden result.

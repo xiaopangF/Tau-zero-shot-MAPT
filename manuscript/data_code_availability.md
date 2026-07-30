@@ -66,3 +66,6 @@ Before journal submission, the generated result tables and manuscript figures
 should be archived with a permanent DOI. The current GitHub repository alone is
 not ideal for hosting large generated TSV files because the project intentionally
 ignores `data/raw`, `data/external`, `data/processed`, and `results` outputs.
+The established-control calibration can be regenerated with
+`scripts/run_positive_control_calibration.ps1`. Its outputs are the positive-control
+TSV, a summary TSV, and a publication figure under `results/manuscript_assets/`.

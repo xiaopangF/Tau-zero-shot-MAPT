@@ -7,6 +7,11 @@ from pathlib import Path
 
 from .annotations import annotate_variant_row
 from .baselines import heuristic_score_rows
+from .calibration import (
+    create_positive_control_plot,
+    positive_control_rows,
+    positive_control_summary_rows,
+)
 from .compare import compare_model_rows
 from .concordance import (
     concordance_rows,
@@ -198,6 +203,39 @@ def cmd_summarize_alphamissense(args: argparse.Namespace) -> None:
     rows = alphamissense_summary_rows(alpha_rows, rejected_rows)
     write_tsv(args.out, rows, ["section", "category", "count"])
     print(f"Wrote {len(rows)} AlphaMissense summary rows to {args.out}")
+
+def cmd_calibrate_positive_controls(args: argparse.Namespace) -> None:
+    scores = read_tsv(args.scores)
+    annotations = read_tsv(args.annotations) if args.annotations else []
+    rows = positive_control_rows(scores, annotations, score_column=args.score_column)
+    write_tsv(
+        args.out,
+        rows,
+        [
+            "variant_id",
+            "protein_change",
+            "position",
+            "tau_region",
+            "evidence_class",
+            "evidence_note",
+            "found_in_atlas",
+            "score",
+            "score_std",
+            "atlas_size",
+            "rank",
+            "top_fraction",
+            "top_percent",
+            "top_1pct",
+            "top_5pct",
+            "top_10pct",
+            "calibration_interpretation",
+        ],
+    )
+    write_tsv(args.summary_out, positive_control_summary_rows(rows), ["metric", "value"])
+    if args.figure:
+        create_positive_control_plot(rows, args.figure)
+    print(f"Wrote {len(rows)} positive-control rows to {args.out}")
+
 
 def cmd_summarize_domains(args: argparse.Namespace) -> None:
     scores = read_tsv(args.scores)
@@ -411,6 +449,18 @@ def build_parser() -> argparse.ArgumentParser:
     alpha_summary_parser.add_argument("--rejected", default=None)
     alpha_summary_parser.add_argument("--out", required=True, type=Path)
     alpha_summary_parser.set_defaults(func=cmd_summarize_alphamissense)
+
+    calibration_parser = sub.add_parser(
+        "calibrate-positive-controls",
+        help="Rank established MAPT controls within the complete ESM atlas.",
+    )
+    calibration_parser.add_argument("--scores", required=True)
+    calibration_parser.add_argument("--annotations", default=None)
+    calibration_parser.add_argument("--score-column", default="pathogenic_score_mean")
+    calibration_parser.add_argument("--out", required=True, type=Path)
+    calibration_parser.add_argument("--summary-out", required=True, type=Path)
+    calibration_parser.add_argument("--figure", default=None, type=Path)
+    calibration_parser.set_defaults(func=cmd_calibrate_positive_controls)
 
     domain_summary_parser = sub.add_parser(
         "summarize-domains", help="Summarize score distributions by Tau region."

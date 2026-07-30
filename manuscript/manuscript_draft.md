@@ -254,39 +254,28 @@ repository stores the code and instructions needed to regenerate them.
 ### A complete Tau-F missense atlas
 
 We generated a complete single amino-acid substitution atlas for the 441-residue
-2N4R Tau-F / hTau40 reference sequence. The atlas contains 8379 missense
-variants, corresponding to 19 possible substitutions at each reference position.
-Each variant was annotated with Tau region, repeat-domain membership, aggregation
-motif proximity, post-translational modification proximity, charge-change class,
-special-residue changes, and proximity to known pathogenic MAPT hotspots.
-
-This design keeps the scoring layer label-free. Clinical annotations are added
-only after the full variant list and zero-shot model scores have been generated.
+2N4R Tau-F / hTau40 reference sequence. The atlas contains 8379 missense variants,
+corresponding to 19 possible substitutions at each reference position. Each variant
+was annotated with Tau region, repeat-domain membership, aggregation motif proximity,
+post-translational modification proximity, charge-change class, special-residue
+changes, and proximity to known pathogenic MAPT hotspots.
 
 ### Strict clinical-label coordinate QC limits direct benchmarking
 
-ClinVar import was performed with strict 441-aa Tau-F coordinate checking. A
-ClinVar missense row was accepted only when the reported reference amino acid
-matched the Tau-F reference residue at the same position. This retained 33
-annotated variants and rejected 1119 MAPT rows that did not cleanly map to the
-Tau-F atlas.
-
-Accepted ClinVar labels were sparse: 1 pathogenic/likely pathogenic variant, 2
-benign/likely benign variants, 26 variants of uncertain significance, and 4
-variants with conflicting classifications. Therefore, the direct P/LP versus B/LB
-benchmark contains only 3 examples. All AUROC and AUPRC values from this strict
-benchmark should be interpreted as pipeline sanity checks rather than estimates
+ClinVar import retained 33 annotated variants and rejected 1119 MAPT rows that did
+not cleanly map to the Tau-F atlas. Accepted labels were sparse: 1 pathogenic/likely
+pathogenic variant, 2 benign/likely benign variants, 26 variants of uncertain
+significance, and 4 variants with conflicting classifications. Therefore, the direct
+P/LP versus B/LB benchmark contains only 3 examples. AUROC and AUPRC values from
+this benchmark should be interpreted as pipeline sanity checks rather than estimates
 of clinical performance.
 
 ### ESM-1v ensemble scores highlight Tau repeat regions
 
 We scored all 8379 variants with a five-checkpoint ESM-1v ensemble and used the
-mean negative log-likelihood ratio as the pathogenicity-prioritization score. At
-the domain level, the highest average scores were observed in the microtubule
-repeat regions, while the N-terminal projection domain had the lowest average
-score.
-
-Mean ESM-1v ensemble pathogenic scores by region were:
+mean negative log-likelihood ratio as the pathogenicity-prioritization score. At the
+domain level, the highest average scores were observed in the microtubule repeat
+regions, while the N-terminal projection domain had the lowest average score.
 
 | Region | Mean score | Global top 10 percent fraction |
 |---|---:|---:|
@@ -299,216 +288,138 @@ Mean ESM-1v ensemble pathogenic scores by region were:
 | N_terminal_projection | 3.08 | 0.000 |
 
 This domain pattern is consistent with the biological importance of the repeat
-region, but it should be presented as a prioritization signal rather than a
-clinical validation result.
+region, but the calibration result below means it should be presented as a
+prioritization signal rather than a clinical validation result.
 
-### Comparison with a transparent Tau heuristic baseline
+### ESM/heuristic agreement and discordance
 
-To test whether the language-model scores merely reproduce obvious Tau-specific
-rules, we built a transparent heuristic baseline from region, motif, hotspot,
-PTM, charge-change, and special-residue features. Across all 8379 variants, the
-ESM-1v ensemble and the Tau heuristic baseline had Pearson r=0.58, indicating
-moderate overlap.
+We compared ESM-1v with the transparent Tau heuristic across the complete
+8379-variant atlas using a top-decile rule. A total of 209 variants were
+high-priority for both methods, while 629 were ESM-only and 629 were heuristic-only.
+AlphaMissense was not included in this full-atlas concordance claim because it
+received accepted scores for only 877 of 8379 variants.
 
-This result supports using the heuristic baseline as an interpretability control.
-The two methods are related but not identical, which creates an opportunity to
-study variants where ESM-1v and explicit Tau-domain rules disagree.
+### Calibration against established MAPT pathogenic controls
 
-
-### Model concordance and discordance
-
-We compared ESM-1v, the transparent Tau heuristic, and AlphaMissense using a
-simple top-decile rule. A variant was considered high-priority for a method if it
-fell in that method's top 10 percent of scored variants.
-
-Across all 8379 Tau-F missense variants, 209 variants were high-priority for both
-ESM-1v and the Tau heuristic. These variants were concentrated in Tau repeat
-regions and included examples such as C322E, D314W, S258E, L315D, and I308W. This
-set represents variants where the protein language model and explicit Tau-domain
-rules point in the same direction.
-
-There were also 629 ESM-only high-priority variants and 629 heuristic-only
-high-priority variants. These discordant groups are useful for follow-up because
-they identify substitutions where the learned sequence model and handcrafted Tau
-rules disagree.
-
-No variant was high-priority for all three methods under the top-decile rule.
-This primarily reflects AlphaMissense's limited accepted coverage of the 441-aa
-Tau-F atlas after strict coordinate QC. AlphaMissense-only high-priority variants
-included K375I, K375E, K375T, K375N, and K383I, illustrating that the external
-predictor captures some candidates outside the strongest ESM/heuristic overlap.
+We separately evaluated five established MAPT missense controls: G272V, P301L,
+V337M, R406W, and N279K. All five were present in the atlas, but none entered the
+ESM-1v top 10%. G272V ranked 2097/8379 (top 25.03%), P301L ranked 3161/8379 (top
+37.73%), N279K ranked 3076/8379 (top 36.71%), R406W ranked 3184/8379 (top 38.00%),
+and V337M ranked 3870/8379 (top 46.19%). This calibration result means the current
+ESM-1v score should be interpreted as a sequence-compatibility prioritization signal,
+not as a clinically calibrated MAPT pathogenicity probability.
 
 ### ClinVar VUS prioritization
 
-Because most strictly mapped ClinVar variants were VUS, the most useful clinical
-analysis in the current data is prioritization rather than binary classification.
-The top ESM-1v-ranked ClinVar VUS candidates were:
+Because most strictly mapped ClinVar variants were VUS, prioritization is more
+appropriate than binary classification for the current clinical layer. The top
+ESM-1v-ranked ClinVar VUS candidates included G440E, G333A, K290Q, T377A, and D34Y.
+These variants should be treated as candidates for follow-up review, not as clinical
+reclassifications.
 
-| Rank | Variant | Score | Region | Mechanistic annotation |
-|---:|---|---:|---|---|
-| 1 | G440E | 10.37 | C_terminal_tail | charge_gain_or_loss; G_loss |
-| 2 | G333A | 8.73 | microtubule_repeat_R3 | G_loss |
-| 3 | K290Q | 8.48 | microtubule_repeat_R2_exon10 | charge_gain_or_loss |
-| 4 | T377A | 7.02 | C_terminal_tail | region signal |
-| 5 | D34Y | 4.12 | N_terminal_projection | charge_gain_or_loss |
+| Rank | Variant | Score | Region |
+|---:|---|---:|---|
+| 1 | G440E | 10.37 | C-terminal tail |
+| 2 | G333A | 8.73 | microtubule repeat R3 |
+| 3 | K290Q | 8.48 | microtubule repeat R2 / exon 10 |
+| 4 | T377A | 7.02 | C-terminal tail |
+| 5 | D34Y | 4.12 | N-terminal projection |
 
-These variants are candidates for literature review, database cross-checking,
-and possible experimental prioritization. They should not be described as
-reclassified pathogenic variants without independent evidence.
+### AlphaMissense coverage and QC
 
-### AlphaMissense provides an external QC and coverage comparison
-
-We imported the public AlphaMissense hg38 table as an external reference model
-using strict Tau-F reference-residue QC. AlphaMissense scores were available for
-877 of 8379 Tau-F missense variants, covering 149 positions. Among scored
-variants, 798 were AlphaMissense likely benign, 67 ambiguous, and 12 likely
-pathogenic.
-
-The importer rejected 3932 MAPT AlphaMissense rows after filtering for P10636:
-2048 were outside the 441-aa Tau-F reference range, and 1884 had a reference
-amino acid mismatch. This confirms that AlphaMissense is useful as an external
-reference and coordinate-QC example, but its direct coverage of the 441-aa Tau-F
-atlas is limited.
-
-In the strict ClinVar binary benchmark, AlphaMissense scored only 2 examples.
-Therefore, its apparent AUROC/AUPRC in the local model-comparison table should
-not be reported as a performance claim.
+AlphaMissense scores were available for 877 of 8379 Tau-F missense variants (10.5%),
+covering 149 positions. Among scored variants, 798 were AlphaMissense likely benign,
+67 ambiguous, and 12 likely pathogenic. Because coverage was limited after strict
+Tau-F coordinate matching, AlphaMissense is retained as a supplementary external-
+reference and QC analysis rather than a primary full-atlas head-to-head comparator.
 
 ### Current interpretation
 
-The current evidence supports a manuscript centered on atlas generation,
-coordinate QC, domain-level zero-shot behavior, and VUS prioritization. The
-strict clinical benchmark is too small to support strong claims about clinical
-classification accuracy. The most defensible claim is that the project provides a
-reproducible Tau-F missense prioritization atlas with transparent QC and multiple
-external/contextual interpretation layers.
+The current evidence supports a manuscript centered on atlas generation, coordinate
+QC, domain-level zero-shot behavior, positive-control calibration, and VUS
+prioritization. The strict clinical benchmark is too small and the established-
+control calibration is too weak to support strong claims about clinical classification
+accuracy. The most defensible claim is that the project provides a reproducible
+Tau-F missense prioritization atlas with transparent QC and multiple external/contextual
+interpretation layers.
 
 ## Discussion
 
 ### Principal findings
 
 This study produced a complete zero-shot missense atlas for the 441-aa Tau-F /
-hTau40 isoform. The atlas covers all 8379 possible single amino-acid
-substitutions and combines ESM-1v ensemble scores with Tau-specific mechanistic
-annotations, ClinVar coordinate QC, AlphaMissense coordinate QC, and ranked VUS
-prioritization.
+hTau40 isoform. The atlas covers all 8379 possible single amino-acid substitutions
+and combines ESM-1v ensemble scores with Tau-specific mechanistic annotations,
+positive-control calibration, ClinVar coordinate QC, supplementary AlphaMissense QC,
+and ranked VUS prioritization.
 
-The main finding is not that the model is clinically validated. The main finding
-is that a reproducible, label-free workflow can generate a full Tau-F
-prioritization map while explicitly controlling for MAPT isoform-coordinate
-mismatch. This distinction is important because MAPT has multiple isoforms and
-external variant resources do not always align cleanly to the 441-aa Tau-F
-reference sequence.
+The main finding is not that the model is clinically validated. The main finding is
+that a reproducible, label-free workflow can generate a full Tau-F prioritization map
+while explicitly controlling for MAPT isoform-coordinate mismatch.
 
 ### Biological interpretation
 
-The ESM-1v ensemble assigned higher average pathogenicity-prioritization scores
-to the microtubule repeat regions than to the N-terminal projection domain. This
-pattern is biologically plausible because the repeat regions are central to Tau
-microtubule binding and aggregation-related biology. The result suggests that the
-protein language model captures broad regional constraint in Tau-F, even though
-it was not trained specifically on MAPT clinical labels.
+The ESM-1v ensemble assigned higher average scores to the microtubule repeat regions
+than to the N-terminal projection domain. This is biologically plausible because the
+repeat regions are central to Tau microtubule binding and aggregation-related biology.
+However, the five-control calibration showed that known MAPT missense controls were
+not concentrated in the ESM-1v top decile. The regional signal should therefore be
+interpreted as a prioritization pattern, not proof that every high-scoring substitution
+is pathogenic.
 
-This domain-level signal should be interpreted as a prioritization pattern. It
-does not prove that every high-scoring repeat-region substitution is pathogenic.
-Rather, it identifies regions and substitutions where the model sees stronger
-sequence incompatibility and where follow-up biological review is most justified.
+### Calibration against established MAPT pathogenic controls
+
+Five established MAPT missense controls, G272V, P301L, V337M, R406W, and N279K, were
+all present in the atlas, but none was placed in the ESM-1v top decile. G272V was the
+highest-ranked control at 2097/8379, corresponding to the top 25.03% of scores; the
+remaining controls fell between the top 36.71% and top 46.19%. The present ESM-1v
+score should therefore not be described as a calibrated MAPT pathogenicity probability.
+It is better interpreted as a sequence-compatibility prioritization signal whose
+usefulness depends on independent Tau biology and variant-level evidence.
 
 ### Value of strict coordinate QC
 
-A major practical lesson from this project is that coordinate QC is not a minor
-technical detail. Strict ClinVar matching accepted only a small number of
-annotated Tau-F missense variants and rejected many MAPT rows that could not be
-safely mapped to the 441-aa reference. AlphaMissense showed a similar issue: only
-877 of 8379 Tau-F missense variants received accepted AlphaMissense scores after
-strict matching, while thousands of MAPT rows were rejected because they were
-outside the Tau-F range or had reference-residue mismatches.
-
-This does not mean ClinVar or AlphaMissense are low-quality resources. It means
-that MAPT isoform biology makes naive merging risky. For a Tau-specific atlas,
-reference-residue checking is necessary to avoid mixing data from different
-coordinate systems.
+Strict ClinVar and AlphaMissense matching showed that many external MAPT rows cannot
+be safely mapped to the 441-aa Tau-F reference. AlphaMissense covered only 877 of
+8379 atlas variants, so it is retained as a supplementary reference rather than a
+primary full-atlas comparator. This does not mean that ClinVar or AlphaMissense are
+low-quality resources; it means that MAPT isoform biology makes naive merging risky.
 
 ### Interpretation of the ClinVar benchmark
 
 The strict binary ClinVar benchmark contains only three P/LP versus B/LB examples.
-Therefore, AUROC, AUPRC, and enrichment values should be treated as smoke checks.
-They can show that the evaluation code runs and that score direction is handled
-consistently, but they cannot support a strong clinical-performance claim.
+Therefore, AUROC and AUPRC values should be treated as smoke checks rather than
+clinical-performance estimates. Current VUS rankings are also hypothesis-generating,
+not clinical interpretations.
 
-For this reason, the manuscript should avoid language such as "accurately
-predicts pathogenicity" or "clinically validates MAPT variants." Safer language
-is "prioritizes variants," "generates a zero-shot atlas," and "provides a
-reproducible framework for follow-up."
+### VUS prioritization and a falsifiable hypothesis
 
-### VUS prioritization as the most useful current clinical layer
+G440E is a concrete hypothesis-generating case. Although it lies in the C-terminal
+tail rather than a canonical microtubule-binding repeat, its high score could reflect
+sequence constraints related to Tau conformational dynamics, membrane association, or
+phosphorylation accessibility. This should be tested in cellular or biochemical assays
+rather than treated as a conclusion.
 
-Most strictly mapped ClinVar variants were VUS. This makes VUS prioritization a
-more appropriate current use case than binary classification. The ranked VUS list
-highlights variants such as G440E, G333A, K290Q, T377A, and D34Y for further
-review. These variants should be treated as candidates for literature review,
-population-frequency checking, segregation analysis, functional assays, or expert
-curation.
+### Limitations and future work
 
-Importantly, prioritization is not reclassification. A high ESM-1v score means a
-variant is worth attention, not that it is clinically pathogenic.
-
-### Relationship to the heuristic baseline
-
-The transparent Tau heuristic baseline had moderate correlation with ESM-1v
-scores across all variants. This indicates that the language model and explicit
-Tau-domain rules overlap but are not identical. This is useful in two ways. First,
-it helps interpret high ESM scores that occur in known sensitive regions or
-motifs. Second, it identifies discordant variants where the model assigns high
-priority even though simple Tau rules do not, or vice versa.
-
-The concordance analysis provides a first version of this comparison. ESM-1v and
-the Tau heuristic shared 209 top-decile variants, while ESM-only and
-heuristic-only groups each contained 629 variants. No variant was top-decile for
-all three methods, mainly because AlphaMissense coverage was limited after strict
-Tau-F coordinate QC. These concordant and discordant groups can guide future
-variant-level review.
-
-### Limitations
-
-This project has several important limitations.
-
-First, the clinical benchmark is very small after strict Tau-F coordinate QC.
-This prevents strong claims about clinical accuracy.
-
-Second, ESM-1v is a sequence model. It does not directly model all disease
-mechanisms, including splicing effects, isoform expression, post-translational
+ESM-1v does not directly model splicing, isoform expression, post-translational
 modification state, neuronal cell context, aggregation kinetics, or patient-level
-genetic background.
+genetic background. The negative positive-control calibration indicates that a generic
+protein language model may not rank every known Tau disease mutation highly.
+AlphaMissense coverage is incomplete, and all current VUS candidates require
+independent evidence and experimental validation.
 
-Third, AlphaMissense coverage of the 441-aa Tau-F atlas is incomplete under strict
-reference matching. AlphaMissense is therefore useful as an external reference
-and QC example, but not as a full head-to-head benchmark for all Tau-F variants.
-
-Fourth, the current VUS rankings have not been experimentally validated. They are
-hypothesis-generating candidates, not clinical interpretations.
-
-### Future work
-
-The next computational step is to refine the concordance and discordance analysis
-into publication-ready supplementary tables and variant-level case studies. These
-case studies should separate variants consistently prioritized by multiple methods
-from variants where methods disagree.
-
-The next biological step is to review the top VUS candidates against additional
-evidence, including population frequency, literature reports, segregation data,
-functional studies, and domain-specific Tau biology. If experimental work is
-possible, high-priority variants could be tested in assays related to Tau
-microtubule binding, aggregation propensity, phosphorylation, or cellular toxicity.
+The next analyses should add population-frequency filtering, conservation and disorder
+features, mechanistic regression, and functional assays. In particular, we will test
+whether ESM scores are associated with conservation, hydrophobicity, disorder, charge
+change, or aggregation-related features.
 
 ### Conclusion
 
-This work provides a reproducible zero-shot Tau-F missense atlas with strict
-coordinate QC and interpretable prioritization layers. The strongest claim is not
-clinical diagnosis. The strongest claim is that the atlas gives researchers a
-transparent starting point for MAPT/Tau variant review, hypothesis generation,
-and follow-up prioritization.
-
+This work provides a reproducible zero-shot Tau-F missense atlas with strict coordinate
+QC and interpretable prioritization layers. Its most defensible use is as a transparent
+starting point for MAPT/Tau variant review, hypothesis generation, and follow-up
+prioritization, not as a standalone clinical diagnostic model.
 ## Data and Code Availability
 
 ### Code availability
