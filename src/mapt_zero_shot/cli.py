@@ -26,6 +26,7 @@ from .external_scores import load_alphamissense_with_qc
 from .figures import create_basic_figures
 from .fusion import composite_summary_rows, composite_zero_shot_rows
 from .io import merge_fieldnames, read_tsv, write_tsv
+from .knowledge_a import score_scheme_a_rows, scheme_a_gold_rows, scheme_a_summary_rows
 from .physchem import (
     feature_rows,
     grid_search_weights,
@@ -265,6 +266,57 @@ def cmd_fuse_zero_shot(args: argparse.Namespace) -> None:
         f"{controls_in_top}/{len(control_rows)}; mean rank={mean_rank:.2f}"
     )
     print(f"Wrote ranked variants to {args.out}")
+
+def cmd_score_knowledge_a(args: argparse.Namespace) -> None:
+    feature_table = read_tsv(args.physchem_features)
+    ranked = score_scheme_a_rows(feature_table, controls=tuple(args.control))
+    fieldnames = [
+        "variant_id",
+        "protein_change",
+        "position",
+        "wt_aa",
+        "mut_aa",
+        "tau_region",
+        "hydrophobicity_delta",
+        "beta_sheet_delta",
+        "net_charge_delta",
+        "baseline_physchem_z",
+        "directed_beta_score",
+        "ptm_microenvironment_score",
+        "splicing_proximity_score",
+        "scheme_a_final_score",
+        "scheme_a_rank",
+        "scheme_a_top_fraction",
+        "scheme_a_top_percent",
+        "gold_standard_control",
+    ]
+    gold_fieldnames = [
+        "variant_id",
+        "baseline_physchem_z",
+        "directed_beta_score",
+        "ptm_microenvironment_score",
+        "splicing_proximity_score",
+        "scheme_a_final_score",
+        "scheme_a_rank",
+    ]
+    write_tsv(args.out, ranked, fieldnames)
+    gold_rows = scheme_a_gold_rows(ranked, controls=tuple(args.control))
+    write_tsv(args.gold_out, gold_rows, gold_fieldnames)
+    write_tsv(
+        args.summary_out,
+        scheme_a_summary_rows(ranked, controls=tuple(args.control), top_fraction=args.top_fraction),
+        ["metric", "value"],
+    )
+    top_cutoff = ceil(len(ranked) * args.top_fraction)
+    controls_in_top = sum(int(row["scheme_a_rank"]) <= top_cutoff for row in gold_rows)
+    mean_rank = sum(int(row["scheme_a_rank"]) for row in gold_rows) / len(gold_rows)
+    print("Model: Scheme A knowledge-driven score (fixed parameters, no label tuning)")
+    print(
+        f"Gold-standard controls in top {args.top_fraction:.2%}: "
+        f"{controls_in_top}/{len(gold_rows)}; mean rank={mean_rank:.2f}"
+    )
+    print(f"Wrote ranked variants to {args.out}")
+    print(f"Wrote gold-standard detail table to {args.gold_out}")
 
 def cmd_score_heuristic(args: argparse.Namespace) -> None:
     annotations = read_tsv(args.annotations)
@@ -588,6 +640,22 @@ def build_parser() -> argparse.ArgumentParser:
         help="Gold-standard control used for validation only. May be repeated.",
     )
     fusion_parser.set_defaults(func=cmd_fuse_zero_shot)
+    knowledge_a_parser = sub.add_parser(
+        "score-knowledge-a",
+        help="Score variants with fixed Scheme A knowledge-driven rules.",
+    )
+    knowledge_a_parser.add_argument("--physchem-features", required=True)
+    knowledge_a_parser.add_argument("--out", required=True, type=Path)
+    knowledge_a_parser.add_argument("--gold-out", required=True, type=Path)
+    knowledge_a_parser.add_argument("--summary-out", required=True, type=Path)
+    knowledge_a_parser.add_argument("--top-fraction", type=float, default=0.01)
+    knowledge_a_parser.add_argument(
+        "--control",
+        action="append",
+        default=["G272V", "P301L", "V337M", "R406W", "N279K"],
+        help="Gold-standard control used for validation only. May be repeated.",
+    )
+    knowledge_a_parser.set_defaults(func=cmd_score_knowledge_a)
     heuristic_parser = sub.add_parser(
         "score-heuristic", help="Score variants with a transparent Tau heuristic baseline."
     )

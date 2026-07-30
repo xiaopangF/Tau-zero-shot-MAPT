@@ -269,6 +269,25 @@ python -m mapt_zero_shot.cli fuse-zero-shot `
 `score-physchem-grid` is retained as a legacy reproducibility command. It searches
 weights using the five controls and therefore is label-informed; it must not be
 presented as the main zero-shot model in the paper.
+## Scheme A knowledge-driven model
+
+`score-knowledge-a` applies fixed, label-free rules to an existing
+physicochemical feature table. It uses directed beta-sheet disruption in the Tau
+repeat region, PTM-neighborhood charge/hydrophobicity disturbance, proximity to
+the exon-10 splicing-sensitive center residue 285, and a small baseline
+physicochemical z-score term.
+
+```powershell
+python -m mapt_zero_shot.cli score-knowledge-a `
+  --physchem-features results/scores/mapt_physchem_zero_shot_ranked.tsv `
+  --out results/scores/mapt_scheme_a_ranked.tsv `
+  --gold-out results/mapt_scheme_a_gold_controls.tsv `
+  --summary-out results/mapt_scheme_a_summary.tsv
+```
+
+The five established controls are not used to tune any Scheme A parameter. They
+are reported only as a validation table with baseline physicochemical z-score,
+directed beta score, PTM disturbance score, splicing score, final score, and rank.
 ## AlphaMissense external baseline
 
 AlphaMissense can be imported as an external reference model after downloading the
