@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+from math import ceil
 from pathlib import Path
 
 from .annotations import annotate_variant_row
@@ -23,6 +24,7 @@ from .ensemble import ensemble_score_rows
 from .evaluate import make_binary_examples, metrics_rows
 from .external_scores import load_alphamissense_with_qc
 from .figures import create_basic_figures
+from .fusion import composite_summary_rows, composite_zero_shot_rows
 from .io import merge_fieldnames, read_tsv, write_tsv
 from .physchem import (
     feature_rows,
@@ -126,6 +128,11 @@ def cmd_score_physchem_zero_shot(args: argparse.Namespace) -> None:
         "wt_aa",
         "mut_aa",
         "tau_region",
+        "tau_motif",
+        "near_ptm_site_3aa",
+        "motif_prior",
+        "ptm_prior",
+        "mechanistic_prior_score",
         "hydrophobicity_delta",
         "beta_sheet_delta",
         "net_charge_delta",
@@ -202,6 +209,60 @@ def cmd_score_physchem_grid(args: argparse.Namespace) -> None:
         f"Gold-standard controls in top {args.top_fraction:.2%}: "
         f"{result.controls_in_top_fraction}/{len(result.control_ranks)}; "
         f"mean rank={result.mean_control_rank:.2f}"
+    )
+    print(f"Wrote ranked variants to {args.out}")
+
+def cmd_fuse_zero_shot(args: argparse.Namespace) -> None:
+    esm_rows = read_tsv(args.esm_scores)
+    physchem_rows = read_tsv(args.physchem_scores)
+    ranked = composite_zero_shot_rows(
+        esm_rows,
+        physchem_rows,
+        esm_column=args.esm_column,
+        physchem_column=args.physchem_column,
+        esm_weight=args.esm_weight,
+        physchem_weight=args.physchem_weight,
+    )
+    control_set = set(args.control)
+    for row in ranked:
+        row["gold_standard_control"] = str(row["variant_id"] in control_set)
+    fieldnames = [
+        "variant_id",
+        "protein_change",
+        "position",
+        "wt_aa",
+        "mut_aa",
+        "tau_region",
+        "tau_motif",
+        "near_ptm_site_3aa",
+        "esm_raw_score",
+        "physchem_raw_score",
+        "esm_standardized_score",
+        "physchem_standardized_score",
+        "esm_weight",
+        "physchem_weight",
+        "zero_shot_composite_score",
+        "zero_shot_composite_rank",
+        "zero_shot_composite_top_fraction",
+        "zero_shot_composite_top_percent",
+        "gold_standard_control",
+    ]
+    write_tsv(args.out, ranked, fieldnames)
+    write_tsv(
+        args.summary_out,
+        composite_summary_rows(ranked, controls=tuple(args.control), top_fraction=args.top_fraction),
+        ["metric", "value"],
+    )
+    control_rows = [row for row in ranked if row["gold_standard_control"] == "True"]
+    mean_rank = sum(int(row["zero_shot_composite_rank"]) for row in control_rows) / len(control_rows)
+    top_cutoff = ceil(len(ranked) * args.top_fraction)
+    controls_in_top = sum(
+        int(row["zero_shot_composite_rank"]) <= top_cutoff for row in control_rows
+    )
+    print("Model: zero-shot ESM + physicochemical fusion (no label-informed tuning)")
+    print(
+        f"Gold-standard controls in top {args.top_fraction:.2%}: "
+        f"{controls_in_top}/{len(control_rows)}; mean rank={mean_rank:.2f}"
     )
     print(f"Wrote ranked variants to {args.out}")
 
@@ -507,6 +568,26 @@ def build_parser() -> argparse.ArgumentParser:
         help="Gold-standard control variant ID. May be repeated.",
     )
     physchem_parser.set_defaults(func=cmd_score_physchem_grid)
+    fusion_parser = sub.add_parser(
+        "fuse-zero-shot",
+        help="Fuse ESM and physicochemical zero-shot scores after unlabeled normalization.",
+    )
+    fusion_parser.add_argument("--esm-scores", required=True)
+    fusion_parser.add_argument("--physchem-scores", required=True)
+    fusion_parser.add_argument("--esm-column", default="pathogenic_score_mean")
+    fusion_parser.add_argument("--physchem-column", default="physchem_zero_shot_score")
+    fusion_parser.add_argument("--esm-weight", type=float, default=0.75)
+    fusion_parser.add_argument("--physchem-weight", type=float, default=0.25)
+    fusion_parser.add_argument("--top-fraction", type=float, default=0.01)
+    fusion_parser.add_argument("--out", required=True, type=Path)
+    fusion_parser.add_argument("--summary-out", required=True, type=Path)
+    fusion_parser.add_argument(
+        "--control",
+        action="append",
+        default=["G272V", "P301L", "V337M", "R406W", "N279K"],
+        help="Gold-standard control used for validation only. May be repeated.",
+    )
+    fusion_parser.set_defaults(func=cmd_fuse_zero_shot)
     heuristic_parser = sub.add_parser(
         "score-heuristic", help="Score variants with a transparent Tau heuristic baseline."
     )

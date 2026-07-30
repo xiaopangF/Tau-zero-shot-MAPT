@@ -13,7 +13,7 @@ from decimal import Decimal
 from math import ceil
 from statistics import mean, pstdev
 
-from .annotations import region_for_position
+from .annotations import annotate_variant_row, region_for_position
 
 
 KYTE_DOOLITTLE = {
@@ -195,18 +195,26 @@ def zero_shot_physchem_rows(
         "net_charge_delta": config.net_charge_weight,
     }
     for row in rows:
-        scored = dict(row)
+        scored = annotate_variant_row(dict(row))
         perturbation_score = 0.0
         for column, weight in feature_weights.items():
             center, scale = statistics[column]
             value = abs((float(row[column]) - center) / scale)
             scored[f"standardized_{column}"] = value
             perturbation_score += weight * value
-        region, multiplier = _region_multiplier(row)
+        region, multiplier = _region_multiplier(scored)
+        motif_prior = 0.75 if scored["tau_motif"] else 0.0
+        ptm_prior = 0.25 if scored["near_ptm_site_3aa"] == "True" else 0.0
+        mechanistic_prior = motif_prior + ptm_prior
         scored["tau_region"] = region
         scored["region_multiplier"] = multiplier
+        scored["motif_prior"] = motif_prior
+        scored["ptm_prior"] = ptm_prior
+        scored["mechanistic_prior_score"] = mechanistic_prior
         scored["physchem_perturbation_score"] = perturbation_score
-        scored["physchem_zero_shot_score"] = perturbation_score * multiplier
+        scored["physchem_zero_shot_score"] = (
+            perturbation_score * multiplier + mechanistic_prior
+        )
         scored_rows.append(scored)
     return scored_rows
 
@@ -268,6 +276,8 @@ def zero_shot_summary_rows(
         {"metric": "feature_weight_hydrophobicity", "value": 1.0},
         {"metric": "feature_weight_beta_sheet", "value": 1.0},
         {"metric": "feature_weight_net_charge", "value": 1.0},
+        {"metric": "motif_prior_weight", "value": 0.75},
+        {"metric": "ptm_proximity_prior_weight", "value": 0.25},
         {"metric": "gold_standard_count", "value": len(ranks)},
         {"metric": "gold_standard_in_top_fraction", "value": controls_in_top},
         {"metric": "gold_standard_mean_rank", "value": mean_rank},

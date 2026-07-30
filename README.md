@@ -248,9 +248,23 @@ python -m mapt_zero_shot.cli score-physchem-zero-shot `
 It computes Kyte-Doolittle hydrophobicity delta, Chou-Fasman beta-sheet
 propensity delta, and net-charge delta. Each feature is standardized across the
 complete unlabeled 8379-variant atlas, converted to an absolute perturbation
-magnitude, and combined with a fixed Tau-region prior. The model does not use
-ClinVar labels or the five established pathogenic controls to choose weights.
-Those controls appear only in the summary as an external calibration check.
+magnitude, and combined with fixed Tau priors for repeat-region membership,
+PHF6/PHF6* aggregation motifs, and proximity to common Tau PTM sites. The model
+does not use ClinVar labels or the five established pathogenic controls to choose
+weights. Those controls appear only in the summary as an external calibration
+check.
+
+Use `fuse-zero-shot` to combine an ESM score table with the physicochemical table
+after unlabeled z-score normalization. The default is ESM-dominant (`0.75`) with
+a smaller physicochemical contribution (`0.25`):
+
+```powershell
+python -m mapt_zero_shot.cli fuse-zero-shot `
+  --esm-scores results/scores/mapt_esm1v_ensemble.tsv `
+  --physchem-scores results/scores/mapt_physchem_zero_shot_ranked.tsv `
+  --out results/scores/mapt_zero_shot_composite_ranked.tsv `
+  --summary-out results/mapt_zero_shot_composite_summary.tsv
+```
 
 `score-physchem-grid` is retained as a legacy reproducibility command. It searches
 weights using the five controls and therefore is label-informed; it must not be
