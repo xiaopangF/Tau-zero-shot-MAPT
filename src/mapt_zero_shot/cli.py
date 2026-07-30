@@ -28,7 +28,10 @@ from .physchem import (
     feature_rows,
     grid_search_weights,
     ranked_physchem_rows,
+    ranked_zero_shot_physchem_rows,
     summary_rows as physchem_summary_rows,
+    zero_shot_physchem_rows,
+    zero_shot_summary_rows,
 )
 from .manuscript_assets import (
     create_domain_summary_plot,
@@ -110,6 +113,49 @@ def cmd_import_alphamissense(args: argparse.Namespace) -> None:
         )
     print(f"Wrote {len(rows)} variants with AlphaMissense fields to {args.out}")
 
+
+def cmd_score_physchem_zero_shot(args: argparse.Namespace) -> None:
+    variants = read_tsv(args.variants)
+    rows = feature_rows(variants)
+    scored = zero_shot_physchem_rows(rows)
+    ranked = ranked_zero_shot_physchem_rows(scored, controls=tuple(args.control))
+    fieldnames = [
+        "variant_id",
+        "protein_change",
+        "position",
+        "wt_aa",
+        "mut_aa",
+        "tau_region",
+        "hydrophobicity_delta",
+        "beta_sheet_delta",
+        "net_charge_delta",
+        "standardized_hydrophobicity_delta",
+        "standardized_beta_sheet_delta",
+        "standardized_net_charge_delta",
+        "region_multiplier",
+        "physchem_perturbation_score",
+        "physchem_zero_shot_score",
+        "physchem_rank",
+        "physchem_top_fraction",
+        "physchem_top_percent",
+        "gold_standard_control",
+    ]
+    write_tsv(args.out, ranked, fieldnames)
+    write_tsv(
+        args.summary_out,
+        zero_shot_summary_rows(ranked, controls=tuple(args.control), top_fraction=args.top_fraction),
+        ["metric", "value"],
+    )
+    control_rows = [row for row in ranked if row["gold_standard_control"] == "True"]
+    mean_rank = sum(int(row["physchem_rank"]) for row in control_rows) / len(control_rows)
+    top_cutoff = ceil(len(ranked) * args.top_fraction)
+    controls_in_top = sum(int(row["physchem_rank"]) <= top_cutoff for row in control_rows)
+    print("Model: zero-shot physicochemical perturbation (no label-informed tuning)")
+    print(
+        f"Gold-standard controls in top {args.top_fraction:.2%}: "
+        f"{controls_in_top}/{len(control_rows)}; mean rank={mean_rank:.2f}"
+    )
+    print(f"Wrote ranked variants to {args.out}")
 
 def cmd_score_physchem_grid(args: argparse.Namespace) -> None:
     variants = read_tsv(args.variants)
@@ -428,6 +474,21 @@ def build_parser() -> argparse.ArgumentParser:
     alpha_parser.add_argument("--position-offset", type=int, default=0)
     alpha_parser.set_defaults(func=cmd_import_alphamissense)
 
+    physchem_zero_shot_parser = sub.add_parser(
+        "score-physchem-zero-shot",
+        help="Score physicochemical disruption with a fixed label-free model.",
+    )
+    physchem_zero_shot_parser.add_argument("--variants", required=True)
+    physchem_zero_shot_parser.add_argument("--out", required=True, type=Path)
+    physchem_zero_shot_parser.add_argument("--summary-out", required=True, type=Path)
+    physchem_zero_shot_parser.add_argument("--top-fraction", type=float, default=0.01)
+    physchem_zero_shot_parser.add_argument(
+        "--control",
+        action="append",
+        default=["G272V", "P301L", "V337M", "R406W", "N279K"],
+        help="Gold-standard control used for validation only. May be repeated.",
+    )
+    physchem_zero_shot_parser.set_defaults(func=cmd_score_physchem_zero_shot)
     physchem_parser = sub.add_parser(
         "score-physchem-grid",
         help="Grid-search hydrophobicity, beta-sheet, and charge weights.",

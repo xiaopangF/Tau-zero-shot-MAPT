@@ -234,22 +234,27 @@ being mistaken for valid weights.
 After running the ESM-1v ensemble, the workflow can generate summary plots and
 ranked tables under `results/`. Generated result files are ignored by Git and should
 be archived separately when needed.
-## Physicochemical grid-search model
+## Zero-shot physicochemical model
 
-Use `score-physchem-grid` to compute three simple mutation features and search for
-linear weights that prioritize the five established MAPT controls `G272V`, `P301L`,
-`V337M`, `R406W`, and `N279K`:
+The recommended physicochemical model is `score-physchem-zero-shot`:
 
 ```powershell
-python -m mapt_zero_shot.cli score-physchem-grid `
+python -m mapt_zero_shot.cli score-physchem-zero-shot `
   --variants data/processed/mapt_all_missense_variants.tsv `
-  --out results/scores/mapt_physchem_grid_ranked.tsv `
-  --summary-out results/mapt_physchem_grid_summary.tsv
+  --out results/scores/mapt_physchem_zero_shot_ranked.tsv `
+  --summary-out results/mapt_physchem_zero_shot_summary.tsv
 ```
 
-The features are Kyte-Doolittle hydrophobicity delta, Chou-Fasman beta-sheet
-propensity delta, and net-charge delta. The summary table reports the best weights,
-how many controls enter the top 1%, and their mean rank.
+It computes Kyte-Doolittle hydrophobicity delta, Chou-Fasman beta-sheet
+propensity delta, and net-charge delta. Each feature is standardized across the
+complete unlabeled 8379-variant atlas, converted to an absolute perturbation
+magnitude, and combined with a fixed Tau-region prior. The model does not use
+ClinVar labels or the five established pathogenic controls to choose weights.
+Those controls appear only in the summary as an external calibration check.
+
+`score-physchem-grid` is retained as a legacy reproducibility command. It searches
+weights using the five controls and therefore is label-informed; it must not be
+presented as the main zero-shot model in the paper.
 ## AlphaMissense external baseline
 
 AlphaMissense can be imported as an external reference model after downloading the

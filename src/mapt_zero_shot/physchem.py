@@ -1,11 +1,19 @@
-"""Physicochemical feature scoring and weight search for MAPT variants."""
+"""Zero-shot and legacy physicochemical scoring for MAPT variants.
+
+The zero-shot model in this module never uses pathogenicity labels to select
+weights. It measures how unusual a substitution is in three physicochemical
+dimensions and applies a fixed Tau-region prior derived from the protein's
+known domain organization.
+"""
 
 from __future__ import annotations
 
 from dataclasses import dataclass
 from decimal import Decimal
 from math import ceil
-from statistics import mean
+from statistics import mean, pstdev
+
+from .annotations import region_for_position
 
 
 KYTE_DOOLITTLE = {
@@ -80,12 +88,35 @@ NET_CHARGE = {
 
 GOLD_STANDARD_CONTROLS = ("G272V", "P301L", "V337M", "R406W", "N279K")
 
+# Fixed biological priors. These are not parameters learned from the five
+# controls. The repeat region is the main microtubule-binding and aggregation-
+# related part of adult Tau.
+REGION_MULTIPLIERS = {
+    "N_terminal_projection": 0.85,
+    "proline_rich_region": 1.00,
+    "microtubule_repeat_R1": 1.35,
+    "microtubule_repeat_R2_exon10": 1.45,
+    "microtubule_repeat_R3": 1.35,
+    "microtubule_repeat_R4": 1.35,
+    "C_terminal_tail": 1.00,
+    "unannotated": 1.00,
+}
+
 
 @dataclass(frozen=True)
 class PhyschemWeights:
     hydrophobicity_delta: float
     beta_sheet_delta: float
     net_charge_delta: float
+
+
+@dataclass(frozen=True)
+class ZeroShotPhyschemConfig:
+    """Fixed, label-free configuration for the physicochemical model."""
+
+    hydrophobicity_weight: float = 1.0
+    beta_sheet_weight: float = 1.0
+    net_charge_weight: float = 1.0
 
 
 @dataclass(frozen=True)
@@ -123,6 +154,133 @@ def feature_row(row: dict[str, str]) -> dict[str, object]:
 
 def feature_rows(variant_rows: list[dict[str, str]]) -> list[dict[str, object]]:
     return [feature_row(row) for row in variant_rows]
+
+
+def _feature_statistics(
+    rows: list[dict[str, object]],
+) -> dict[str, tuple[float, float]]:
+    if not rows:
+        raise ValueError("At least one variant row is required")
+    columns = ("hydrophobicity_delta", "beta_sheet_delta", "net_charge_delta")
+    statistics: dict[str, tuple[float, float]] = {}
+    for column in columns:
+        values = [float(row[column]) for row in rows]
+        standard_deviation = pstdev(values)
+        statistics[column] = (mean(values), standard_deviation or 1.0)
+    return statistics
+
+
+def _region_multiplier(row: dict[str, object]) -> tuple[str, float]:
+    position = int(row["position"])
+    region = str(row.get("tau_region") or region_for_position(position))
+    return region, REGION_MULTIPLIERS.get(region, REGION_MULTIPLIERS["unannotated"])
+
+
+def zero_shot_physchem_rows(
+    rows: list[dict[str, object]],
+    config: ZeroShotPhyschemConfig = ZeroShotPhyschemConfig(),
+) -> list[dict[str, object]]:
+    """Score physicochemical disruption without using disease labels.
+
+    Each feature is standardized across the complete atlas. The absolute
+    standardized change measures disruption regardless of direction, which
+    avoids cancelling mutations with different mechanisms.
+    """
+
+    statistics = _feature_statistics(rows)
+    scored_rows: list[dict[str, object]] = []
+    feature_weights = {
+        "hydrophobicity_delta": config.hydrophobicity_weight,
+        "beta_sheet_delta": config.beta_sheet_weight,
+        "net_charge_delta": config.net_charge_weight,
+    }
+    for row in rows:
+        scored = dict(row)
+        perturbation_score = 0.0
+        for column, weight in feature_weights.items():
+            center, scale = statistics[column]
+            value = abs((float(row[column]) - center) / scale)
+            scored[f"standardized_{column}"] = value
+            perturbation_score += weight * value
+        region, multiplier = _region_multiplier(row)
+        scored["tau_region"] = region
+        scored["region_multiplier"] = multiplier
+        scored["physchem_perturbation_score"] = perturbation_score
+        scored["physchem_zero_shot_score"] = perturbation_score * multiplier
+        scored_rows.append(scored)
+    return scored_rows
+
+
+def ranked_zero_shot_physchem_rows(
+    rows: list[dict[str, object]],
+    controls: tuple[str, ...] = GOLD_STANDARD_CONTROLS,
+) -> list[dict[str, object]]:
+    """Rank rows using the label-free physicochemical score."""
+
+    if not rows:
+        raise ValueError("At least one scored row is required")
+    control_set = set(controls)
+    ranked = sorted(
+        (dict(row) for row in rows),
+        key=lambda row: (
+            -float(row["physchem_zero_shot_score"]),
+            str(row["variant_id"]),
+        ),
+    )
+    scores = [float(row["physchem_zero_shot_score"]) for row in ranked]
+    for row in ranked:
+        score = float(row["physchem_zero_shot_score"])
+        rank = 1 + sum(other > score for other in scores)
+        row["physchem_rank"] = rank
+        row["physchem_top_fraction"] = rank / len(ranked)
+        row["physchem_top_percent"] = 100 * rank / len(ranked)
+        row["gold_standard_control"] = str(row["variant_id"] in control_set)
+    return ranked
+
+
+def zero_shot_summary_rows(
+    ranked_rows: list[dict[str, object]],
+    controls: tuple[str, ...] = GOLD_STANDARD_CONTROLS,
+    top_fraction: float = 0.01,
+) -> list[dict[str, object]]:
+    """Create validation metrics for a fixed zero-shot score."""
+
+    if not ranked_rows:
+        raise ValueError("At least one ranked row is required")
+    if not 0 < top_fraction <= 1:
+        raise ValueError("top_fraction must be in (0, 1]")
+    control_set = set(controls)
+    control_rows = [row for row in ranked_rows if str(row["variant_id"]) in control_set]
+    found = {str(row["variant_id"]) for row in control_rows}
+    missing = sorted(control_set - found)
+    if missing:
+        raise ValueError(f"Gold-standard controls not found in variant list: {missing}")
+    ranks = {str(row["variant_id"]): int(row["physchem_rank"]) for row in control_rows}
+    top_rank_cutoff = ceil(len(ranked_rows) * top_fraction)
+    controls_in_top = sum(rank <= top_rank_cutoff for rank in ranks.values())
+    mean_rank = mean(ranks.values())
+    return [
+        {"metric": "model_type", "value": "zero_shot_physchem_perturbation"},
+        {"metric": "uses_gold_standard_labels_for_scoring", "value": "False"},
+        {"metric": "n_variants", "value": len(ranked_rows)},
+        {"metric": "top_fraction", "value": top_fraction},
+        {"metric": "top_rank_cutoff", "value": top_rank_cutoff},
+        {"metric": "feature_weight_hydrophobicity", "value": 1.0},
+        {"metric": "feature_weight_beta_sheet", "value": 1.0},
+        {"metric": "feature_weight_net_charge", "value": 1.0},
+        {"metric": "gold_standard_count", "value": len(ranks)},
+        {"metric": "gold_standard_in_top_fraction", "value": controls_in_top},
+        {"metric": "gold_standard_mean_rank", "value": mean_rank},
+        {"metric": "gold_standard_max_rank", "value": max(ranks.values())},
+        {
+            "metric": "all_gold_standard_in_top_fraction",
+            "value": str(controls_in_top == len(ranks)),
+        },
+        *[
+            {"metric": f"rank_{variant_id}", "value": ranks[variant_id]}
+            for variant_id in sorted(ranks)
+        ],
+    ]
 
 
 def _score(row: dict[str, object], weights: PhyschemWeights) -> float:
@@ -215,6 +373,8 @@ def grid_search_weights(
     grid_step: float = 0.5,
     top_fraction: float = 0.01,
 ) -> GridSearchResult:
+    """Legacy label-informed search retained for reproducibility only."""
+
     if not 0 < top_fraction <= 1:
         raise ValueError("top_fraction must be in (0, 1]")
     feature_counts = _unique_feature_counts(rows)
@@ -283,7 +443,7 @@ def ranked_physchem_rows(
         scored_rows.append(scored)
     ranked = sorted(
         scored_rows,
-        key=lambda row: (-float(row["physchem_score"]), str(row["variant_id"])), 
+        key=lambda row: (-float(row["physchem_score"]), str(row["variant_id"])),
     )
     scores = [float(row["physchem_score"]) for row in ranked]
     for index, row in enumerate(ranked, start=1):
@@ -303,6 +463,7 @@ def summary_rows(
     top_fraction: float,
 ) -> list[dict[str, object]]:
     rows: list[dict[str, object]] = [
+        {"metric": "model_type", "value": "legacy_label_informed_linear_grid"},
         {"metric": "n_variants", "value": result.n_variants},
         {"metric": "top_fraction", "value": top_fraction},
         {"metric": "top_rank_cutoff", "value": result.top_rank_cutoff},
