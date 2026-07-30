@@ -109,12 +109,21 @@ def microtubule_interface_disturbance_strength(row: dict[str, object]) -> float:
 
 
 def microtubule_interface_score(row: dict[str, object]) -> float:
-    """Feature 5: interface synergy score requiring position and disturbance."""
+    """Feature 5: two-layer interface score requiring position and disturbance."""
 
+    if microtubule_interface_disturbance_strength(row) < 1.5:
+        return 0.0
     position = int(row["position"])
-    in_interface = any(start <= position <= end for start, end in MICROTUBULE_INTERFACE_INTERVALS)
-    if in_interface and microtubule_interface_disturbance_strength(row) >= 1.5:
+    in_exact_interface = any(
+        start <= position <= end for start, end in MICROTUBULE_INTERFACE_INTERVALS
+    )
+    if in_exact_interface:
         return 2.0
+    in_extended_interface = any(
+        start - 3 <= position <= end + 3 for start, end in MICROTUBULE_INTERFACE_INTERVALS
+    )
+    if in_extended_interface:
+        return 1.0
     return 0.0
 
 
@@ -217,7 +226,7 @@ def scheme_a_summary_rows(
     cutoff = ceil(len(ranked_rows) * top_fraction)
     in_top = sum(rank <= cutoff for rank in ranks.values())
     rows: list[dict[str, object]] = [
-        {"metric": "model_type", "value": "scheme_a_knowledge_driven_with_interface_synergy"},
+        {"metric": "model_type", "value": "scheme_a_knowledge_driven_with_two_layer_interface"},
         {"metric": "uses_gold_standard_labels_for_scoring", "value": "False"},
         {"metric": "n_variants", "value": len(ranked_rows)},
         {"metric": "top_fraction", "value": top_fraction},

@@ -287,7 +287,7 @@ python -m mapt_zero_shot.cli score-knowledge-a `
 
 The five established controls are not used to tune any Scheme A parameter. They
 are reported only as a validation table with baseline physicochemical z-score,
-directed beta score, PTM disturbance score, splicing score, microtubule interface disturbance strength, interface synergy score, final score, and rank.
+directed beta score, PTM disturbance score, splicing score, microtubule interface disturbance strength, two-layer interface score, final score, and rank.
 ## AlphaMissense external baseline
 
 AlphaMissense can be imported as an external reference model after downloading the
