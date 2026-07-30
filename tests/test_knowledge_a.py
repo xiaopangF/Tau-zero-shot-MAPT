@@ -1,5 +1,6 @@
 from mapt_zero_shot.knowledge_a import (
     directed_beta_disruption_score,
+    microtubule_interface_score,
     ptm_microenvironment_score,
     score_scheme_a_rows,
     scheme_a_gold_rows,
@@ -30,6 +31,13 @@ def test_scheme_a_splicing_score_uses_distance_to_285():
     assert splicing_proximity_score({"position": "259"}) == 0.0
 
 
+def test_scheme_a_microtubule_interface_score_uses_fixed_intervals_once():
+    assert microtubule_interface_score({"position": "255"}) == 1.5
+    assert microtubule_interface_score({"position": "285"}) == 1.5
+    assert microtubule_interface_score({"position": "337"}) == 0.0
+    assert microtubule_interface_score({"position": "346"}) == 0.0
+
+
 def test_score_scheme_a_rows_outputs_final_rank_and_gold_details():
     variants = [
         {"variant_id": "A1C", "protein_change": "p.A1C", "position": "1", "wt_aa": "A", "mut_aa": "C"},
@@ -50,5 +58,5 @@ def test_score_scheme_a_rows_outputs_final_rank_and_gold_details():
     assert gold[0]["directed_beta_score"] == 2.5
     assert "scheme_a_final_score" in gold[0]
     assert "scheme_a_rank" in gold[0]
-    assert summary["model_type"] == "scheme_a_knowledge_driven"
+    assert summary["model_type"] == "scheme_a_knowledge_driven_with_interface"
     assert summary["uses_gold_standard_labels_for_scoring"] == "False"
