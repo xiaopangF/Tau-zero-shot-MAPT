@@ -1,7 +1,7 @@
 # MAPT/Tau Zero-Shot Variant Atlas
 
 This project builds a reproducible, label-free prioritization atlas for MAPT/Tau
-missense variants. The v1 scope is a computational bioinformatics paper:
+missense variants. The v1 scope is a computational bioinformatics project:
 enumerate all single amino-acid substitutions in canonical 441-aa human Tau,
 score them with zero-shot protein language models, benchmark against clinical
 annotations, and add Tau-specific mechanistic annotations.
@@ -78,15 +78,11 @@ Clinical labels are never used to train or tune the zero-shot scores. ClinVar,
 UniProt disease annotations, and population frequency data are evaluation and
 interpretation layers only.
 
-## Manuscript claim
+## Repository privacy note
 
-Recommended wording:
-
-> We generated a zero-shot MAPT/Tau missense variant atlas using pretrained
-> protein sequence models and evaluated whether label-free scores prioritize
-> known pathogenic MAPT variants and clinically uncertain missense variants.
-
-
+Manuscript drafts, LaTeX sources, generated PDFs, and submission-package files are
+kept local and are intentionally not tracked in GitHub. This public repository keeps
+the reproducible analysis code and workflow documentation.
 ## Reproducible smoke workflow used in this workspace
 
 The current workspace has already run the lightweight ESM-2 model
@@ -131,7 +127,7 @@ The ESM output contains two related score fields:
 - `esm_llr = mutant_logp - wildtype_logp`; lower values mean the mutant residue is less compatible with the pretrained sequence model.
 - `pathogenic_score = -esm_llr`; higher values are used for pathogenicity prioritization, ClinVar benchmarking, figures, and VUS ranking.
 
-Use `pathogenic_score` for all main manuscript ranking analyses.
+Use `pathogenic_score` for all main ranking analyses.
 
 ## ESM-1v ensemble
 
@@ -164,7 +160,7 @@ into the 441-aa Tau-F atlas.
 
 ## Formal ESM-1v run script
 
-Use the guarded script for the manuscript-scale ESM-1v ensemble:
+Use the guarded script for the full ESM-1v ensemble:
 
 ```powershell
 .\scripts\run_esm1v_ensemble.ps1
@@ -233,24 +229,11 @@ For robust ESM-1v downloads, use:
 This checks remote file sizes and prevents half-downloaded checkpoint caches from
 being mistaken for valid weights.
 
-## Manuscript assets
+## Publication-oriented summary assets
 
-After running ESM-1v ensemble, generate manuscript-oriented plots and markdown:
-
-```powershell
-python -m mapt_zero_shot.cli manuscript-assets `
-  --domain-summary results/mapt_esm1v_ensemble_domain_summary.tsv `
-  --model-comparison results/mapt_model_comparison.tsv `
-  --vus-priority results/mapt_esm1v_top50_vus_priority.tsv `
-  --esm-scores results/scores/mapt_esm1v_ensemble.tsv `
-  --heuristic-scores results/scores/mapt_heuristic_scores.tsv `
-  --clinvar-summary results/mapt_clinvar_qc_summary.tsv `
-  --alphamissense-summary results/mapt_alphamissense_qc_summary.tsv `
-  --outdir results/manuscript_assets
-```
-
-This creates workflow, domain, model-comparison, ESM-vs-heuristic, and VUS lollipop figures, plus a short markdown result summary and a top VUS candidate table.
-
+After running the ESM-1v ensemble, the workflow can generate summary plots and
+ranked tables under `results/`. Generated result files are ignored by Git and should
+be archived separately when needed.
 ## AlphaMissense external baseline
 
 AlphaMissense can be imported as an external reference model after downloading the

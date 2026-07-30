@@ -18,8 +18,8 @@ results/*
 !results/scores/.gitkeep
 
 *.egg-info/
+submission_package/
 submission_package/**
-!submission_package/README.md
 manuscript/latex/*.aux
 manuscript/latex/*.bbl
 manuscript/latex/*.blg
@@ -28,3 +28,12 @@ manuscript/latex/*.out
 manuscript/latex/*.toc
 manuscript/latex/*.fls
 manuscript/latex/*.fdb_latexmk
+
+# Keep manuscript drafts, LaTeX sources, PDFs, and submission packages local only.
+manuscript/**
+scripts/build_latex_pdf.ps1
+tests/test_latex_reading_version.py
+scripts/prepare_submission_package.ps1
+tests/test_submission_package.py
+src/mapt_zero_shot/submission_qc.py
+tests/test_submission_qc.py
